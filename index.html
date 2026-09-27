@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>エンジニア適性職診断</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ==================== 画面1：ユーザー情報入力 ==================== -->
+  <div class="app-shell entry-shell" id="screen-entry">
+    <div class="app-header">
+      <span class="material-symbols-rounded">psychology</span>
+      <span>エンジニア適性職診断</span>
+    </div>
+
+    <div class="hero-wrap">
+      <img class="hero-mobile" src="https://lh3.googleusercontent.com/d/1JDmm5hlg5CRcD61jBzJMCIIJyjxKaPKy" alt="適職診断アプリ キャラクター一覧（縦長）">
+      <img class="hero-pc" src="https://lh3.googleusercontent.com/d/1a8YFOltJ8zfwC0CarJni5clOXgW74p9V" alt="適職診断アプリ キャラクター一覧（横長）">
+    </div>
+
+    <h1>ようこそ！</h1>
+    <p class="lead">ニックネームを入力して、あなたのエンジニアタイプを診断しよう。結果は司会のスクリーンで発表されます。</p>
+
+    <div class="card">
+      <label class="field-label" for="nickname">ニックネーム</label>
+      <input type="text" id="nickname" placeholder="例：たろう" maxlength="20">
+      <div id="entryError" class="muted" style="color:var(--color-negative-500); margin-top:8px; display:none;"></div>
+
+      <button class="btn btn-primary mt-6" id="startBtn">
+        <span class="material-symbols-rounded">play_arrow</span>
+        診断をはじめる
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 画面2：設問一覧（ページネーション） ==================== -->
+  <div class="app-shell" id="screen-questions" style="display:none;">
+    <div class="app-header">
+      <span class="material-symbols-rounded">psychology</span>
+      <span>エンジニア適性職診断</span>
+    </div>
+
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel"></div>
+
+    <div id="questionsArea"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="prevBtn">戻る</button>
+      <button class="btn btn-primary" id="nextBtn" disabled>次へ</button>
+    </div>
+  </div>
+
+  <!-- ==================== 画面3：回答結果（完了通知） ==================== -->
+  <div class="app-shell" id="screen-result" style="display:none;">
+    <div class="app-header">
+      <span class="material-symbols-rounded">psychology</span>
+      <span>エンジニア適性職診断</span>
+    </div>
+
+    <div class="card center">
+      <span class="material-symbols-rounded" style="font-size:48px; color:var(--color-success-500);">check_circle</span>
+      <h1>回答ありがとうございました！</h1>
+      <p class="lead" id="resultMessage">
+        診断結果を送信しました。<br>
+        あなたの適性職種・キャラクターなどは、<br>この後、司会のスクリーンで発表されます。お楽しみに！
+      </p>
+      <span class="badge">結果は管理画面にリアルタイムで反映されます</span>
+    </div>
+  </div>
+
+  <script>
+    // ★ここをGASのウェブアプリURL（.../exec）に書き換えてください★
+    var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzTXakRT4pGZml7ieK92eAlh-xKYO5KehfLhHWnKgYFq3Y-uLMniD3NlEIYhHtgiTB4/exec';
+
+    var UID = null;
+    var NICKNAME = null;
+
+    // ---- 画面切り替え ----
+    function showScreen(name) {
+      document.getElementById('screen-entry').style.display = name === 'entry' ? 'block' : 'none';
+      document.getElementById('screen-questions').style.display = name === 'questions' ? 'block' : 'none';
+      document.getElementById('screen-result').style.display = name === 'result' ? 'block' : 'none';
+    }
+
+    // ---- GAS呼び出し共通ヘルパー ----
+    // Content-Type: text/plain にすることで、fetchのCORSプリフライトを回避する
+    // （application/jsonにするとGAS側で正しく受け取れないため必須）。
+    async function callApi(action, payload) {
+      var res = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ action: action }, payload || {})),
+      });
+      var json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'サーバーエラーが発生しました');
+      return json.data;
+    }
+
+    // ==================== 画面1：登録 ====================
+    document.getElementById('startBtn').addEventListener('click', async function () {
+      var nickname = document.getElementById('nickname').value.trim();
+      var errorEl = document.getElementById('entryError');
+      errorEl.style.display = 'none';
+
+      if (!nickname) {
+        errorEl.textContent = 'ニックネームを入力してください';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      var btn = document.getElementById('startBtn');
+      btn.disabled = true;
+      btn.textContent = '登録中...';
+
+      try {
+        var user = await callApi('register', { nickname: nickname });
+        UID = user.userId;
+        NICKNAME = user.nickname;
+        showScreen('questions');
+        renderPage();
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>診断をはじめる';
+        errorEl.textContent = err.message || '登録に失敗しました。もう一度お試しください。';
+        errorEl.style.display = 'block';
+      }
+    });
+
+    // ==================== 画面2：設問 ====================
+    var currentPage = 0;
+
+    // Questionsシート(q1〜q15)と同じ内容をクライアント側にも保持（表示の高速化のため）。
+    // 採点はquestion_idをキーにサーバー側のQuestionsシートと突き合わせて行う。
+    var pages = [
+      [
+        { id: 'q1', title: '1. 新しいサービスを作ることになったら、あなたが一番燃えるのは？',
+          options: ['まず「何のために作るのか」というコンセプトを固めること', '「いつまでに何を終えるか」の計画を引くこと', '「誰にどの役割を任せるか」とメンバーの強みを考えること', '「迷わず使える」画面のデザインを考えること'] },
+        { id: 'q2', title: '2. チームで急なトラブルが起きたとき、あなたが自然と動くのは？',
+          options: ['関係者に状況を素早く共有し、対応の段取りを組む', '焦っているメンバーに声をかけ、落ち着かせる', 'ユーザーにどう見えているか、画面の見た目から確認する', 'とりあえず画面をいじって再現できるか試してみる'] },
+        { id: 'q3', title: '3. 後輩や同僚から相談を受けたとき、あなたのスタンスは？',
+          options: ['まず気持ちを聞いて、無理していないか気にかける', '「見せ方」次第で伝わり方が変わるとアドバイスする', '実際に手を動かして一緒に試してみる', '根本原因を一つずつ切り分けて突き止める'] },
+        { id: 'q4', title: '4. 休日、新しいアプリを触っていて気になるのは？',
+          options: ['配色やフォント、細かい余白のセンス', 'アニメーションや画面遷移のなめらかさ', '裏側のデータがどう処理されているか', '通知や位置情報など端末ならではの機能'] },
+        { id: 'q5', title: '5. 新しいプロジェクトが始まるとき、まず気になるのは？',
+          options: ['ユーザーが触る画面の見た目や操作感', 'データベースやAPIなど裏側の設計', 'iOSとAndroid、どちらを優先するか', 'システム全体の構成や将来の拡張性'] }
+      ],
+      [
+        { id: 'q6', title: '6. 休日の過ごし方として、しっくりくるのは？',
+          options: ['家でひたすらコードを書く、または技術書を読む', '外に持ち出したガジェットやアプリを試す', '大きな建物や街の作りをじっくり眺める', '旅先でもネットワークやWi-Fi環境が気になる'] },
+        { id: 'q7', title: '7. 旅行の計画を立てるなら？',
+          options: ['行った先々で使えるアプリを事前にたくさん入れておく', '全体の行程をきっちり設計してから細部を詰める', '交通機関や宿の「繋がりやすさ」を重視する', 'トラブルが起きたときの代替プランまで用意しておく'] },
+        { id: 'q8', title: '8. 理想の働き方に近いのは？',
+          options: ['長期的に破綻しない仕組みをじっくり設計すること', 'どこにいてもクラウド経由で仕事ができること', 'サービスが止まらないよう安定稼働を守り続けること', '誰かに悪用されない仕組みを地道に固めること'] },
+        { id: 'q9', title: '9. ゲームをするなら、しっくりくるのは？',
+          options: ['拠点やネットワークを広げていく陣取り・経営系', 'サーバーやリソースを監視しながら効率よく回す系', '罠や仕掛けを見破りながら攻略する謎解き系', '隅々までやり込んでバグや裏技を見つける系'] },
+        { id: 'q10', title: '10. 何かを学ぶとき好きなのは？',
+          options: ['実際に手を動かして、壊れたら直しながら覚える', '「どう攻められるか」の視点から弱点を探る', '決まった手順通りに一つずつ丁寧に確認する', 'データや事例を集めて傾向から理解する'] }
+      ],
+      [
+        { id: 'q11', title: '11. 初対面の人が多い場に行くと？',
+          options: ['まず場の空気やリスクを見極めてから動く', '誰かが困っていないか、細かい様子まで観察する', '参加者の傾向を分析するように眺めてしまう', '会話パターンから場の「法則」を見つけようとする'] },
+        { id: 'q12', title: '12. 困っている後輩がいたら？',
+          options: ['手順書やチェックリストを一緒に見直す', '似たケースのデータや事例がないか探す', '同じ失敗を繰り返さない仕組み化を考える', '情報がきちんと流れる状態を裏側から整える'] },
+        { id: 'q13', title: '13. 新しいツールを選ぶとき重視するのは？',
+          options: ['数値やデータで比較して一番良いものを選ぶ', '自動化・効率化にどれだけ役立つか', '他のツールと安定して連携できるか', 'チームのゴールに一番貢献しそうか'] },
+        { id: 'q14', title: '14. 休みの日、外に出るなら？',
+          options: ['最新ガジェットや展示を見に出かける', '黙々と自然の中で体を動かす', '気になるお店やサービスを実際に体験しに行く', '友人とスポーツ観戦やライブでワイワイ楽しむ'] },
+        { id: 'q15', title: '15. 理想のチームってどんなイメージ？',
+          options: ['情報がスムーズに流れて、誰も困らないチーム', '目指す方向がはっきり共有されているチーム', '誰が何をしているか、進捗が見えるチーム', 'お互いを気にかけ合える、居心地のいいチーム'] }
+      ]
+    ];
+
+    var answers = {};
+
+    function renderPage() {
+      var questions = pages[currentPage];
+      var area = document.getElementById('questionsArea');
+      area.innerHTML = '';
+
+      var totalPages = pages.length;
+      document.getElementById('progressLabel').textContent = 'ページ ' + (currentPage + 1) + ' / ' + totalPages;
+      document.getElementById('progressFill').style.width = ((currentPage + 1) / totalPages * 100) + '%';
+
+      questions.forEach(function (qz) {
+        var block = document.createElement('div');
+        block.className = 'question-block';
+
+        var qText = document.createElement('div');
+        qText.className = 'question-text';
+        qText.textContent = qz.title;
+        block.appendChild(qText);
+
+        qz.options.forEach(function (optText, idx) {
+          var card = document.createElement('div');
+          var isSelected = answers[qz.id] === (idx + 1);
+          card.className = 'choice-card' + (isSelected ? ' selected' : '');
+          card.innerHTML = '<span class="dot"></span><span>' + escapeHtml(optText) + '</span>';
+          card.addEventListener('click', function () {
+            answers[qz.id] = idx + 1;
+            renderPage();
+          });
+          block.appendChild(card);
+        });
+
+        area.appendChild(block);
+      });
+
+      updateNav();
+    }
+
+    function currentPageAnswered() {
+      return pages[currentPage].every(function (qz) { return answers.hasOwnProperty(qz.id); });
+    }
+
+    function updateNav() {
+      var isLast = currentPage >= pages.length - 1;
+      document.getElementById('prevBtn').style.visibility = currentPage === 0 ? 'hidden' : 'visible';
+
+      var nextBtn = document.getElementById('nextBtn');
+      nextBtn.disabled = !currentPageAnswered();
+      nextBtn.innerHTML = isLast
+        ? '<span class="material-symbols-rounded">send</span>回答を送信する'
+        : '次へ<span class="material-symbols-rounded">arrow_forward</span>';
+    }
+
+    document.getElementById('prevBtn').addEventListener('click', function () {
+      if (currentPage > 0) { currentPage--; renderPage(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', async function () {
+      if (!currentPageAnswered()) return;
+
+      if (currentPage < pages.length - 1) {
+        currentPage++;
+        renderPage();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // 最終ページ：送信（生成AIの処理を含むため数秒かかることがある）
+      var nextBtn = document.getElementById('nextBtn');
+      nextBtn.disabled = true;
+      nextBtn.textContent = '診断中...';
+
+      try {
+        await callApi('submit', { userId: UID, nickname: NICKNAME, answers: answers });
+        document.getElementById('resultMessage').innerHTML =
+          (NICKNAME ? escapeHtml(NICKNAME) + 'さんの' : '') + '診断結果を送信しました。<br>' +
+          'あなたの適性職種・キャラクターなどは、<br>この後、司会のスクリーンで発表されます。お楽しみに！';
+        showScreen('result');
+      } catch (err) {
+        nextBtn.disabled = false;
+        updateNav();
+        alert('送信に失敗しました：' + err.message);
+      }
+    });
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = String(str == null ? '' : str);
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
