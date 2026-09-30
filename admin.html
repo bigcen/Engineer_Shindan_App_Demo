@@ -33,7 +33,7 @@
 
   <script>
     // ★ここをGASのウェブアプリURL（.../exec）に書き換えてください（index.htmlと同じ値）★
-    var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzTXakRT4pGZml7ieK92eAlh-xKYO5KehfLhHWnKgYFq3Y-uLMniD3NlEIYhHtgiTB4/exec';
+    var GAS_API_URL = 'PASTE_YOUR_GAS_WEB_APP_URL_HERE';
     var POLL_INTERVAL_MS = 5000;
 
     var results = [];
@@ -105,13 +105,13 @@
       var area = document.getElementById('detailArea');
 
       area.innerHTML =
-        '<div class="detail-hero">' +
-          (r.imageUrl ? '<img src="' + r.imageUrl + '">' : '<span class="emoji-large">' + (r.animalEmoji || '❓') + '</span>') +
-          '<div>' +
-            '<div class="muted">' + escapeHtml(r.nickname) + 'さん ・ ' + escapeHtml(r.animalName || '') + 'タイプ</div>' +
-            '<div class="catchphrase">' + escapeHtml(r.catchphrase || '') + '</div>' +
-            '<span class="job-chip">' + escapeHtml(r.topJob || '') + '</span>' +
-          '</div>' +
+        (r.imageUrl
+          ? '<div class="detail-hero-img"><img src="' + r.imageUrl + '"></div>'
+          : '<div class="detail-hero-emoji">' + (r.animalEmoji || '❓') + '</div>') +
+        '<div class="detail-info">' +
+          '<div class="muted">' + escapeHtml(r.nickname) + 'さん ・ ' + escapeHtml(r.animalName || '') + 'タイプ</div>' +
+          '<div class="catchphrase">' + escapeHtml(r.catchphrase || '') + '</div>' +
+          '<span class="job-chip">' + escapeHtml(r.topJob || '') + '</span>' +
         '</div>' +
         '<p>' + escapeHtml(r.personalityComment || '') + '</p>' +
 
