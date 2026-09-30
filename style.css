@@ -211,12 +211,12 @@ input[type="text"]:focus {
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-100);
 }
-.hero-wrap img { display: block; width: 100%; height: auto; }
-.hero-pc { display: none; }
+.hero-wrap img { display: none; width: 100%; height: auto; }
+.hero-wrap img.hero-mobile { display: block; }
 @media (min-width: 700px) {
   .app-shell.entry-shell { max-width: 640px; }
-  .hero-mobile { display: none; }
-  .hero-pc { display: block; }
+  .hero-wrap img.hero-mobile { display: none; }
+  .hero-wrap img.hero-pc { display: block; }
 }
 
 /* 管理画面（admin.html）用 */
@@ -247,10 +247,30 @@ input[type="text"]:focus {
 .list-row .sub { font-size: var(--fs-1); color: var(--color-neutral-500); }
 .empty-state { padding: var(--space-6); text-align: center; color: var(--color-neutral-500); }
 
-.detail-hero { display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-5); flex-wrap: wrap; }
-.detail-hero .emoji-large { font-size: 72px; }
-.detail-hero img { width: 96px; height: 96px; border-radius: var(--radius-lg); object-fit: cover; }
-.detail-hero .catchphrase { font-size: var(--fs-6); font-weight: 700; }
+.detail-hero-img {
+  width: 100%;
+  background: var(--color-primary-50);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.detail-hero-img img { width: 100%; max-height: 380px; object-fit: contain; display: block; }
+.detail-hero-emoji {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 96px;
+  background: var(--color-primary-50);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+}
+.detail-info { text-align: center; margin-bottom: var(--space-4); }
+.detail-info .catchphrase { font-size: var(--fs-6); font-weight: 700; margin: var(--space-2) 0; }
 .mbti-chip,.job-chip {
   display: inline-block; margin-top: 6px;
   background: var(--color-neutral-900); color: #fff;
