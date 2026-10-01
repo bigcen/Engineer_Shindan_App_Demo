@@ -104,7 +104,10 @@
     }
 
     // ==================== 画面1：登録 ====================
+    var registerInFlight = false;
     document.getElementById('startBtn').addEventListener('click', async function () {
+      if (registerInFlight) return;
+
       var nickname = document.getElementById('nickname').value.trim();
       var errorEl = document.getElementById('entryError');
       errorEl.style.display = 'none';
@@ -115,6 +118,7 @@
         return;
       }
 
+      registerInFlight = true;
       var btn = document.getElementById('startBtn');
       btn.disabled = true;
       btn.textContent = '登録中...';
@@ -126,6 +130,7 @@
         showScreen('questions');
         renderPage();
       } catch (err) {
+        registerInFlight = false;
         btn.disabled = false;
         btn.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>診断をはじめる';
         errorEl.textContent = err.message || '登録に失敗しました。もう一度お試しください。';
@@ -178,6 +183,7 @@
     ];
 
     var answers = {};
+    var submitInFlight = false; // 素早い連打でボタンのdisabledが間に合わない場合の保険
 
     function renderPage() {
       var questions = pages[currentPage];
@@ -245,6 +251,11 @@
       }
 
       // 最終ページ：送信（生成AIの処理を含むため数秒かかることがある）
+      // disabled属性だけだと、素早い連打で2回目のクリックイベント自体は
+      // 既に発火済みになっているケースがあり得るため、JS側のフラグでも確実にガードする。
+      if (submitInFlight) return;
+      submitInFlight = true;
+
       var nextBtn = document.getElementById('nextBtn');
       nextBtn.disabled = true;
       nextBtn.textContent = '診断中...';
@@ -256,6 +267,7 @@
           'あなたの適性職種・キャラクターなどは、<br>この後、司会のスクリーンで発表されます。お楽しみに！';
         showScreen('result');
       } catch (err) {
+        submitInFlight = false;
         nextBtn.disabled = false;
         updateNav();
         alert('送信に失敗しました：' + err.message);

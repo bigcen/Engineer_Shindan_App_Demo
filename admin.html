@@ -99,6 +99,26 @@
       }).join('');
     }
 
+    function renderTopJobs(r) {
+      var topJobs = (Array.isArray(r.topJobs) && r.topJobs.length)
+        ? r.topJobs
+        : [{ label: r.topJob, score: 100 }]; // 旧データ（この項目がまだ無い行）向けのフォールバック
+      var reasons = Array.isArray(r.topJobReasons) ? r.topJobReasons : [];
+
+      return topJobs.map(function (j, i) {
+        var reasonHtml = reasons[i] ? '<div class="top-job-reason">' + escapeHtml(reasons[i]) + '</div>' : '';
+        return '<div class="top-job-row">' +
+          '<div class="top-job-head">' +
+            '<span class="top-job-rank">' + (i + 1) + '位</span>' +
+            '<span class="top-job-name">' + escapeHtml(j.label) + '</span>' +
+            '<span class="top-job-score">' + j.score + '</span>' +
+          '</div>' +
+          '<div class="pct-track"><div class="pct-fill" style="width:' + j.score + '%"></div></div>' +
+          reasonHtml +
+        '</div>';
+      }).join('');
+    }
+
     function renderDetail(userId) {
       var r = (results || []).find(function (x) { return String(x.userId) === String(userId); });
       if (!r) return;
@@ -115,7 +135,10 @@
         '</div>' +
         '<p>' + escapeHtml(r.personalityComment || '') + '</p>' +
 
-        '<div class="section-title">適性職種</div>' +
+        '<div class="section-title">適性傾向 TOP3（スコアは最上位を100とした相対値）</div>' +
+        renderTopJobs(r) +
+
+        '<div class="section-title muted-title">職種傾向の内訳（構成比・参考情報）</div>' +
         pctRows(r.jobScores) +
 
         '<div class="section-title">インドア / アウトドア</div>' +

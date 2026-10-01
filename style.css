@@ -278,5 +278,17 @@ input[type="text"]:focus {
   padding: 2px 12px; border-radius: 999px; font-size: var(--fs-2);
 }
 .section-title { font-size: var(--fs-2); font-weight: 700; color: var(--color-neutral-700); margin: var(--space-5) 0 var(--space-3); }
+.section-title.muted-title { color: var(--color-neutral-500); font-weight: 400; font-size: var(--fs-1); }
 .hobby-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .hobby-tag { background: var(--color-neutral-100); border-radius: 999px; padding: 4px 12px; font-size: var(--fs-2); }
+
+/* 適性傾向 TOP3（スコア＋理由） */
+.top-job-row { margin-bottom: var(--space-4); }
+.top-job-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: 4px; }
+.top-job-rank {
+  font-size: var(--fs-1); font-weight: 700; color: var(--color-primary-600);
+  background: var(--color-primary-50); border-radius: 999px; padding: 1px 10px; flex: 0 0 auto;
+}
+.top-job-name { font-size: var(--fs-3); font-weight: 700; flex: 1; min-width: 0; }
+.top-job-score { font-size: var(--fs-4); font-weight: 700; color: var(--color-primary-600); flex: 0 0 auto; }
+.top-job-reason { font-size: var(--fs-2); color: var(--color-neutral-700); margin-top: 6px; }
