@@ -33,7 +33,7 @@
 
   <script>
     // ★ここをGASのウェブアプリURL（.../exec）に書き換えてください（index.htmlと同じ値）★
-    var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzTXakRT4pGZml7ieK92eAlh-xKYO5KehfLhHWnKgYFq3Y-uLMniD3NlEIYhHtgiTB4/exec';
+    var GAS_API_URL = 'PASTE_YOUR_GAS_WEB_APP_URL_HERE';
     var POLL_INTERVAL_MS = 5000;
 
     var results = [];
@@ -99,21 +99,31 @@
       }).join('');
     }
 
-    function renderTopJobs(r) {
-      var topJobs = (Array.isArray(r.topJobs) && r.topJobs.length)
-        ? r.topJobs
-        : [{ label: r.topJob, score: 100 }]; // 旧データ（この項目がまだ無い行）向けのフォールバック
+    // 全15職種を同じ尺度（最上位=100の相対スコア）で降順に並べる。
+    // 理由コメントはAIにトークン節約のため上位3件しか生成させていないので、4位以降は理由なしで表示する。
+    function renderJobRanking(r) {
+      var scores = (r.jobRelativeScores && typeof r.jobRelativeScores === 'object') ? r.jobRelativeScores : {};
+      var entries = Object.keys(scores).map(function (label) {
+        return { label: label, score: Number(scores[label]) || 0 };
+      }).sort(function (a, b) { return b.score - a.score; });
+
+      // 旧データ（jobRelativeScoresがまだ無い行）向けのフォールバック
+      if (entries.length === 0) {
+        entries = [{ label: r.topJob, score: 100 }];
+      }
+
       var reasons = Array.isArray(r.topJobReasons) ? r.topJobReasons : [];
 
-      return topJobs.map(function (j, i) {
-        var reasonHtml = reasons[i] ? '<div class="top-job-reason">' + escapeHtml(reasons[i]) + '</div>' : '';
-        return '<div class="top-job-row">' +
+      return entries.map(function (e, i) {
+        var isTop3 = i < 3;
+        var reasonHtml = (isTop3 && reasons[i]) ? '<div class="top-job-reason">' + escapeHtml(reasons[i]) + '</div>' : '';
+        return '<div class="top-job-row' + (isTop3 ? ' is-top3' : '') + '">' +
           '<div class="top-job-head">' +
             '<span class="top-job-rank">' + (i + 1) + '位</span>' +
-            '<span class="top-job-name">' + escapeHtml(j.label) + '</span>' +
-            '<span class="top-job-score">' + j.score + '</span>' +
+            '<span class="top-job-name">' + escapeHtml(e.label) + '</span>' +
+            '<span class="top-job-score">' + e.score + '</span>' +
           '</div>' +
-          '<div class="pct-track"><div class="pct-fill" style="width:' + j.score + '%"></div></div>' +
+          '<div class="pct-track"><div class="pct-fill" style="width:' + e.score + '%"></div></div>' +
           reasonHtml +
         '</div>';
       }).join('');
@@ -135,11 +145,8 @@
         '</div>' +
         '<p>' + escapeHtml(r.personalityComment || '') + '</p>' +
 
-        '<div class="section-title">適性傾向 TOP3（スコアは最上位を100とした相対値）</div>' +
-        renderTopJobs(r) +
-
-        '<div class="section-title muted-title">職種傾向の内訳（構成比・参考情報）</div>' +
-        pctRows(r.jobScores) +
+        '<div class="section-title">適性傾向ランキング（全15職種・スコアは最上位を100とした相対値）</div>' +
+        renderJobRanking(r) +
 
         '<div class="section-title">インドア / アウトドア</div>' +
         pctRows({ 'インドア': r.indoorPct, 'アウトドア': r.outdoorPct }) +
