@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app-shell wide">
+  <div class="app-shell admin-shell">
     <div class="app-header">
       <span class="material-symbols-rounded">monitoring</span>
       <span>管理画面：参加者一覧</span>
@@ -38,18 +38,57 @@
 
     var results = [];
     var selectedUserId = null;
+    var pollTimer = null;
+
+    // このURL・コードはGitHub上で公開されている前提のため、管理キーはコードに埋め込まず、
+    // ブラウザでその場で入力してもらい、このブラウザのlocalStorageにだけ保存する
+    // （ページのソースを見られても管理キーの値自体は漏れない）。
+    function getStoredAdminKey() {
+      return localStorage.getItem('admin_key') || '';
+    }
+
+    function promptForAdminKey() {
+      var key = window.prompt('管理キーを入力してください（GAS側のスクリプトプロパティ ADMIN_KEY と同じ値）');
+      if (key) localStorage.setItem('admin_key', key);
+      return key || '';
+    }
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      refresh();
+      pollTimer = setInterval(refresh, POLL_INTERVAL_MS);
+    }
 
     async function refresh() {
       try {
+        var key = getStoredAdminKey();
         // 単純なGETリクエストなのでCORSプリフライトは発生しない。
-        var res = await fetch(GAS_API_URL + '?action=results');
+        var res = await fetch(GAS_API_URL + '?action=results&key=' + encodeURIComponent(key));
         var json = await res.json();
-        if (!json.ok) throw new Error(json.error || 'サーバーエラーが発生しました');
+        if (!json.ok) {
+          if (json.code === 'UNAUTHORIZED') {
+            handleUnauthorized();
+            return;
+          }
+          throw new Error(json.error || 'サーバーエラーが発生しました');
+        }
         results = Array.isArray(json.data) ? json.data : [];
         renderList();
         if (selectedUserId) renderDetail(selectedUserId);
       } catch (err) {
         console.error('データ取得失敗:', err);
+      }
+    }
+
+    function handleUnauthorized() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      localStorage.removeItem('admin_key');
+      var key = promptForAdminKey();
+      if (key) {
+        startPolling();
+      } else {
+        document.getElementById('listArea').innerHTML =
+          '<div class="empty-state">管理キーが必要です。<br>ページを再読み込みしてください。</div>';
       }
     }
 
@@ -68,9 +107,9 @@
         var row = document.createElement('div');
         row.className = 'list-row' + (String(r.userId) === String(selectedUserId) ? ' active' : '');
         row.innerHTML =
-          (r.imageUrl
-            ? '<img class="thumb" src="' + r.imageUrl + '">'
-            : '<span class="emoji">' + (r.animalEmoji || '❓') + '</span>') +
+          (isSafeImageUrl(r.imageUrl)
+            ? '<img class="thumb" src="' + escapeHtml(r.imageUrl) + '">'
+            : '<span class="emoji">' + escapeHtml(r.animalEmoji || '❓') + '</span>') +
           '<div class="info">' +
             '<div class="nickname">' + escapeHtml(r.nickname) + '</div>' +
             '<div class="sub">' + escapeHtml(r.topJob || '') + '（' + escapeHtml(r.animalName || '') + '）</div>' +
@@ -134,27 +173,40 @@
       if (!r) return;
       var area = document.getElementById('detailArea');
 
+      // PC（広い画面）では左右2カラム：左＝画像・コメント・趣味、右＝全15職種ランキング。
+      // 狭い画面では縦に積まれる（CSS側のgrid切り替え）。
       area.innerHTML =
-        (r.imageUrl
-          ? '<div class="detail-hero-img"><img src="' + r.imageUrl + '"></div>'
-          : '<div class="detail-hero-emoji">' + (r.animalEmoji || '❓') + '</div>') +
-        '<div class="detail-info">' +
-          '<div class="muted">' + escapeHtml(r.nickname) + 'さん ・ ' + escapeHtml(r.animalName || '') + 'タイプ</div>' +
-          '<div class="catchphrase">' + escapeHtml(r.catchphrase || '') + '</div>' +
-          '<span class="job-chip">' + escapeHtml(r.topJob || '') + '</span>' +
-        '</div>' +
-        '<p>' + escapeHtml(r.personalityComment || '') + '</p>' +
+        '<div class="detail-grid">' +
+          '<div class="detail-col-main">' +
+            (isSafeImageUrl(r.imageUrl)
+              ? '<div class="detail-hero-img"><img src="' + escapeHtml(r.imageUrl) + '"></div>'
+              : '<div class="detail-hero-emoji">' + escapeHtml(r.animalEmoji || '❓') + '</div>') +
+            '<div class="detail-info">' +
+              '<div class="muted">' + escapeHtml(r.nickname) + 'さん ・ ' + escapeHtml(r.animalName || '') + 'タイプ</div>' +
+              '<div class="catchphrase">' + escapeHtml(r.catchphrase || '') + '</div>' +
+              '<span class="job-chip">' + escapeHtml(r.topJob || '') + '</span>' +
+            '</div>' +
+            '<p class="detail-comment">' + escapeHtml(r.personalityComment || '') + '</p>' +
 
-        '<div class="section-title">適性傾向ランキング（全15職種・スコアは最上位を100とした相対値）</div>' +
-        renderJobRanking(r) +
+            '<div class="section-title">インドア / アウトドア</div>' +
+            pctRows({ 'インドア': r.indoorPct, 'アウトドア': r.outdoorPct }) +
 
-        '<div class="section-title">インドア / アウトドア</div>' +
-        pctRows({ 'インドア': r.indoorPct, 'アウトドア': r.outdoorPct }) +
+            '<div class="section-title">想定される趣味</div>' +
+            '<div class="hobby-tags">' + (r.hobbies || []).map(function (h) {
+              return '<span class="hobby-tag">' + escapeHtml(h) + '</span>';
+            }).join('') + '</div>' +
+          '</div>' +
+          '<div class="detail-col-rank">' +
+            '<div class="section-title">適性傾向ランキング（全15職種・スコアは最上位を100とした相対値）</div>' +
+            renderJobRanking(r) +
+          '</div>' +
+        '</div>';
+    }
 
-        '<div class="section-title">想定される趣味</div>' +
-        '<div class="hobby-tags">' + (r.hobbies || []).map(function (h) {
-          return '<span class="hobby-tag">' + escapeHtml(h) + '</span>';
-        }).join('') + '</div>';
+    // サーバーが返すimageUrlは本来Googleドライブの画像URLのみだが、
+    // 念のためhttps://で始まる文字列以外は信用せず絵文字表示にフォールバックする。
+    function isSafeImageUrl(url) {
+      return typeof url === 'string' && /^https:\/\//.test(url);
     }
 
     function escapeHtml(str) {
@@ -163,8 +215,7 @@
       return div.innerHTML;
     }
 
-    refresh();
-    setInterval(refresh, POLL_INTERVAL_MS);
+    startPolling();
   </script>
 </body>
 </html>
