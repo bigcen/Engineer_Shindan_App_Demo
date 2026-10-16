@@ -93,11 +93,11 @@
       document.getElementById('screen-entry').style.display = name === 'entry' ? 'block' : 'none';
       document.getElementById('screen-questions').style.display = name === 'questions' ? 'block' : 'none';
       document.getElementById('screen-result').style.display = name === 'result' ? 'block' : 'none';
+      // 画面切り替え時に必ず最上部にスクロール
+      scrollToTop();
     }
 
     // ---- GAS呼び出し共通ヘルパー ----
-    // Content-Type: text/plain にすることで、fetchのCORSプリフライトを回避する
-    // （application/jsonにするとGAS側で正しく受け取れないため必須）。
     async function callApi(action, payload) {
       var res = await fetch(GAS_API_URL, {
         method: 'POST',
@@ -147,8 +147,6 @@
     // ==================== 画面2：設問 ====================
     var currentPage = 0;
 
-    // Questionsシート(q1〜q15)と同じ内容をクライアント側にも保持（表示の高速化のため）。
-    // 採点はquestion_idをキーにサーバー側のQuestionsシートと突き合わせて行う。
     var pages = [
       [
         { id: 'q1', title: '1. 新しいサービスを作ることになったら、あなたが一番燃えるのは？',
@@ -189,7 +187,7 @@
     ];
 
     var answers = {};
-    var submitInFlight = false; // 素早い連打でボタンのdisabledが間に合わない場合の保険
+    var submitInFlight = false;
 
     function renderPage() {
       var questions = pages[currentPage];
@@ -243,7 +241,11 @@
     }
 
     document.getElementById('prevBtn').addEventListener('click', function () {
-      if (currentPage > 0) { currentPage--; renderPage(); scrollToTop(); }
+      if (currentPage > 0) { 
+        currentPage--; 
+        renderPage(); 
+        scrollToTop(); 
+      }
     });
 
     document.getElementById('nextBtn').addEventListener('click', async function () {
@@ -256,9 +258,6 @@
         return;
       }
 
-      // 最終ページ：送信（生成AIの処理を含むため数秒かかることがある）
-      // disabled属性だけだと、素早い連打で2回目のクリックイベント自体は
-      // 既に発火済みになっているケースがあり得るため、JS側のフラグでも確実にガードする。
       if (submitInFlight) return;
       submitInFlight = true;
 
@@ -286,15 +285,16 @@
       return div.innerHTML;
     }
 
-    // 環境によっては { behavior: 'smooth' } オプションが無視され、
-    // スクロール自体が発生しないことがあるため、対応状況を見て切り替える。
+    // スマホの実機（Safari/Chrome）でも確実に最上部に即時移動させる処理
     function scrollToTop() {
-      if ('scrollBehavior' in document.documentElement.style) {
-        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-      } else {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      // 表示切替直後のレイアウト再計算に対応するための微小な遅延処理
+      setTimeout(function () {
         window.scrollTo(0, 0);
-      }
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }, 10);
     }
   </script>
-</body>
-</html>
