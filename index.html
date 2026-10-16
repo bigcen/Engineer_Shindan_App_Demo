@@ -249,7 +249,7 @@
     document.getElementById('nextBtn').addEventListener('click', async function () {
       if (!currentPageAnswered()) return;
 
-      if (currentPage < pages.length - 1) {
+      if (currentPage = pages.length - 1 || currentPage = pages.length) {
         currentPage++;
         renderPage();
         scrollToTop();
