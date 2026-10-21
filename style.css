@@ -296,3 +296,44 @@ input[type="text"]:focus {
 .top-job-score { font-size: var(--fs-2); font-weight: 700; color: var(--color-neutral-700); flex: 0 0 auto; }
 .top-job-row.is-top3 .top-job-score { font-size: var(--fs-4); color: var(--color-primary-600); }
 .top-job-reason { font-size: var(--fs-2); color: var(--color-neutral-700); margin-top: 6px; }
+
+/* リンク形式のボタン（<a class="btn">）用 */
+a.btn { text-decoration: none; }
+
+/* ===== 管理画面（admin.html）をPCで広く・大きく表示する ===== */
+.app-shell.admin-shell {
+  max-width: 1680px;
+  width: 100%;
+  padding-left: var(--space-5);
+  padding-right: var(--space-5);
+}
+.detail-grid { display: block; }
+
+@media (min-width: 1100px) {
+  /* 文字サイズのトークンを管理画面内だけ一段階大きくする（投影・大画面向け） */
+  .app-shell.admin-shell {
+    --fs-1: 14px; --fs-2: 16px; --fs-3: 18px; --fs-4: 20px;
+    --fs-5: 24px; --fs-6: 30px; --fs-7: 34px; --fs-8: 42px;
+  }
+  .app-shell.admin-shell .admin-layout { grid-template-columns: 400px 1fr; gap: var(--space-6); }
+  .app-shell.admin-shell .list-card {
+    position: sticky; top: var(--space-4);
+    max-height: calc(100vh - 2 * var(--space-4)); overflow-y: auto;
+  }
+  .app-shell.admin-shell .list-row { padding: var(--space-4) var(--space-5); }
+  .app-shell.admin-shell .list-row .thumb { width: 56px; height: 56px; }
+  .app-shell.admin-shell .list-row .emoji { font-size: 40px; }
+  .app-shell.admin-shell .card { padding: var(--space-6); }
+
+  /* 詳細：左（画像・コメント・趣味）と右（全15職種ランキング）の2カラム */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: minmax(380px, 5fr) minmax(420px, 6fr);
+    gap: 48px;
+    align-items: start;
+  }
+  .detail-col-rank .section-title:first-child { margin-top: 0; }
+  .detail-hero-img img { max-height: 560px; }
+  .detail-comment { font-size: var(--fs-3); line-height: var(--lh-large); }
+  .pct-fill, .pct-track { height: 12px; }
+}

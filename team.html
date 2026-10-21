@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チームルーム：みんなで働いたら？</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&display=swap">
+<link rel="stylesheet" href="style.css?v=5">
+<script src="config.js"></script>
+<style>
+  .team-shell { max-width: 1680px; margin: 0 auto; padding: 24px; }
+  .team-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .team-head h1 { font-size: var(--fs-6); margin: 0; }
+  .team-head .nav { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  .team-head a { font-size: var(--fs-2); font-weight: 700; color: var(--color-primary-600); text-decoration: none;
+    background: var(--color-primary-50); padding: 6px 14px; border-radius: 999px; }
+
+  /* ---- 総評バナー ---- */
+  .banner { background: linear-gradient(135deg, #0969DA 0%, #1A9C6B 100%); color: #fff; border-radius: 20px;
+    padding: 22px 28px; margin-bottom: 16px; }
+  .banner .kicker { font-size: var(--fs-2); opacity: .85; letter-spacing: var(--ls-large); }
+  .banner .title { font-size: 30px; font-weight: 700; line-height: 1.3; margin: 4px 0 8px; }
+  .banner .comment { font-size: var(--fs-3); line-height: 1.7; opacity: .95; }
+
+  /* ---- 指標カード ---- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat { background: var(--color-neutral-0); border: 1px solid var(--color-neutral-100); border-radius: 16px; padding: 14px 18px; }
+  .stat .label { font-size: var(--fs-1); color: var(--color-neutral-500); font-weight: 700; }
+  .stat .value { font-size: 32px; font-weight: 700; color: var(--color-primary-600); line-height: 1.2; }
+  .stat .value small { font-size: var(--fs-3); color: var(--color-neutral-500); font-weight: 400; margin-left: 4px; }
+  .stat .sub { font-size: var(--fs-2); color: var(--color-neutral-700); margin-top: 2px; }
+
+  /* ---- メイン：オフィス＋サイドパネル ---- */
+  .team-main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+  @media (max-width: 1000px) { .team-main { grid-template-columns: 1fr; } .team-shell { padding: 12px; } }
+
+  .room {
+    position: relative; border-radius: 20px; padding: 18px; border: 1px solid var(--color-neutral-300);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;
+    background-color: #F3EFE6;
+    background-image: linear-gradient(rgba(0,0,0,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.045) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .zone { border-radius: 16px; padding: 12px 14px 16px; background: var(--zbg); border: 2px solid var(--zc); min-height: 220px; }
+  .zone.empty { border-style: dashed; background: rgba(255,255,255,.35); }
+  .zone-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: var(--fs-3); color: var(--zc); }
+  .zone-hint { font-size: var(--fs-1); color: var(--color-neutral-700); margin: 2px 0 12px; }
+  .zone-empty { font-size: var(--fs-2); color: var(--color-neutral-500); padding: 24px 0; text-align: center; }
+  .chars { display: flex; flex-wrap: wrap; gap: 12px 14px; }
+
+  .char { position: relative; width: 112px; background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-pro);
+    text-align: center; transition: opacity .2s, transform .2s; }
+  .char .pic { position: relative; width: 112px; height: 112px; border-radius: 16px; background: #fff;
+    border: 3px solid transparent; box-shadow: 0 2px 6px rgba(0,0,0,.18); overflow: hidden;
+    display: flex; align-items: center; justify-content: center; animation: bob 3.2s ease-in-out infinite; animation-delay: var(--d, 0s); }
+  .char .pic img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .char .pic .emoji { font-size: 54px; }
+  .char .doing { position: absolute; right: -4px; top: -6px; font-size: 22px; z-index: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
+  .char .nm { font-size: var(--fs-2); font-weight: 700; margin-top: 6px; line-height: 1.2; word-break: break-all; }
+  .char .jb { font-size: 12px; color: var(--color-neutral-700); line-height: 1.2; }
+  .char.sel .pic { border-color: #E5484D; }
+  .char.partner .pic { border-color: #1A9C6B; }
+  .char.dim { opacity: .35; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @media (prefers-reduced-motion: reduce) { .char .pic { animation: none; } }
+
+  /* 線はキャラの後ろ、相性スコアのバッジは最前面に描く（線がキャラの顔や名前に重ならないように） */
+  #lines, #pills { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+  #lines { z-index: 1; } #pills { z-index: 6; }
+  .char { z-index: 2; }
+
+  /* ---- サイドパネル ---- */
+  .side { display: flex; flex-direction: column; gap: 14px; }
+  .panel { background: var(--color-neutral-0); border: 1px solid var(--color-neutral-100); border-radius: 16px; padding: 16px 18px; }
+  .panel h2 { font-size: var(--fs-3); margin: 0 0 10px; }
+  .pair { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--color-neutral-100); }
+  .pair:first-of-type { border-top: none; padding-top: 0; }
+  .pair .score { flex: 0 0 auto; min-width: 44px; text-align: center; font-weight: 700; font-size: var(--fs-4); color: #fff;
+    border-radius: 12px; padding: 4px 6px; }
+  .pair .names { font-weight: 700; font-size: var(--fs-2); }
+  .pair .note { font-size: var(--fs-1); color: var(--color-neutral-700); margin-top: 2px; line-height: 1.5; }
+  .s-high { background: #1A9C6B; } .s-mid { background: #0969DA; } .s-low { background: #E08A00; }
+  .missing li { margin-bottom: 6px; font-size: var(--fs-2); line-height: 1.5; }
+  .hint { font-size: var(--fs-2); color: var(--color-neutral-500); line-height: 1.6; }
+  .empty-all { padding: 60px 20px; text-align: center; color: var(--color-neutral-500); background: var(--color-neutral-0);
+    border-radius: 20px; border: 1px solid var(--color-neutral-100); font-size: var(--fs-4); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--fs-1); color: var(--color-neutral-700); margin-top: 10px; }
+  .legend i { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="team-shell">
+  <div class="team-head">
+    <span class="material-symbols-rounded" style="color:var(--color-primary-600);">groups</span>
+    <h1>チームルーム：みんなで働いたら？</h1>
+    <span class="nav">
+      <span class="badge" id="countBadge">0名</span>
+      <a href="admin.html">管理画面へ</a>
+    </span>
+  </div>
+
+  <div id="content"><div class="empty-all">読み込み中...</div></div>
+</div>
+
+<script>
+  var GAS_API_URL = (window.APP_CONFIG && window.APP_CONFIG.GAS_API_URL) || 'https://script.google.com/macros/s/AKfycbzTXakRT4pGZml7ieK92eAlh-xKYO5KehfLhHWnKgYFq3Y-uLMniD3NlEIYhHtgiTB4/exec';
+  var POLL_INTERVAL_MS = 10000;
+
+  // ---- 職種・エリア定義（Config.gsのJOB_CATEGORIESと同じキーに対応）----
+  var JOBS = {
+    PDM:{short:'PdM',zone:'plan'}, PM:{short:'PM',zone:'plan'}, EM:{short:'EM',zone:'plan'},
+    UIUX:{short:'UI/UX',zone:'front'}, FRONTEND:{short:'フロント',zone:'front'}, MOBILE:{short:'モバイル',zone:'front'},
+    ARCHITECT:{short:'アーキテクト',zone:'back'}, BACKEND:{short:'バックエンド',zone:'back'},
+    CLOUD_INFRA:{short:'インフラ',zone:'infra'}, SRE:{short:'SRE',zone:'infra'}, SECURITY:{short:'セキュリティ',zone:'infra'}, QA:{short:'QA',zone:'infra'},
+    DATA_SCIENTIST:{short:'データサイエンス',zone:'data'}, ML_ENGINEER:{short:'機械学習',zone:'data'}, DATA_ENGINEER:{short:'データ基盤',zone:'data'}
+  };
+  var ZONES = {
+    plan: { name:'企画・マネジメント', icon:'🧭', doing:'📝', color:'#0969DA', bg:'rgba(9,105,218,.10)',  hint:'「何を・いつまでに・誰と」を決める人たち',     lack:'方向性を決めて進行を引っ張る人' },
+    front:{ name:'デザイン・フロント', icon:'🎨', doing:'🎨', color:'#D9488C', bg:'rgba(217,72,140,.10)', hint:'使い心地と画面をつくる人たち',               lack:'ユーザーが触る画面や体験をつくる人' },
+    back: { name:'設計・バックエンド', icon:'🏗️', doing:'💻', color:'#1A9C6B', bg:'rgba(26,156,107,.10)', hint:'仕組みの土台を設計・実装する人たち',         lack:'システムの土台を設計・実装する人' },
+    infra:{ name:'基盤・安心',         icon:'🛡️', doing:'🔧', color:'#C77700', bg:'rgba(224,138,0,.12)',  hint:'安定運用・品質・セキュリティを守る人たち',   lack:'リリース後の安定運用や品質・安全を守る人' },
+    data: { name:'データ・AI',         icon:'📊', doing:'📈', color:'#7A52CC', bg:'rgba(122,82,204,.10)', hint:'データから価値を引き出す人たち',             lack:'データを集めて分析・活用する人' }
+  };
+  var ZONE_ORDER = ['plan','front','back','infra','data'];
+
+  // ---- 職種ペアごとの「協業のしやすさ」（0〜100）と一言。無いペアは下の既定値を使う ----
+  var SYNERGY_LIST = [
+    ['PDM','UIUX',92,'ビジョンを使い心地に翻訳する、プロダクトの名コンビ'],
+    ['PDM','PM',88,'「何を作るか」と「いつまでに」が噛み合う推進力'],
+    ['PDM','ARCHITECT',85,'構想を実現できる設計に落とし込む橋渡し役'],
+    ['PDM','DATA_SCIENTIST',86,'データで仮説を確かめ、意思決定の精度を上げる'],
+    ['PM','EM',90,'進行と人の両面でチームを支える黄金ペア'],
+    ['PM','QA',80,'品質を守りながら期日も守る堅実コンビ'],
+    ['EM','SRE',74,'無理のない運用体制を一緒に整えられる'],
+    ['UIUX','FRONTEND',94,'デザインを画面に忠実に実装する最強の組み合わせ'],
+    ['UIUX','MOBILE',86,'指先の体験まで磨き込めるコンビ'],
+    ['FRONTEND','BACKEND',90,'画面と裏側がつながって機能が完成する'],
+    ['FRONTEND','MOBILE',78,'画面づくりの知見を共有しあえる'],
+    ['MOBILE','BACKEND',84,'アプリとAPIの連携をスムーズに進められる'],
+    ['BACKEND','ARCHITECT',88,'設計と実装がぶれない、土台づくりのコンビ'],
+    ['BACKEND','SRE',90,'作る人と守る人。安定運用の基礎になる関係'],
+    ['BACKEND','DATA_ENGINEER',86,'アプリのデータが分析基盤へきれいにつながる'],
+    ['BACKEND','QA',78,'実装と検証で品質を一緒に高められる'],
+    ['BACKEND','ML_ENGINEER',82,'モデルをサービスに組み込む実装で頼れる'],
+    ['ARCHITECT','CLOUD_INFRA',90,'設計の意図を、そのままインフラに反映できる'],
+    ['ARCHITECT','SECURITY',82,'最初から安全な設計にできる'],
+    ['CLOUD_INFRA','SRE',92,'基盤をつくる人と、守り続ける人の鉄壁コンビ'],
+    ['CLOUD_INFRA','SECURITY',88,'基盤の安全性を一緒に固められる'],
+    ['SRE','SECURITY',80,'監視と防御の両面で安心を支える'],
+    ['SRE','QA',76,'障害の芽を早く見つけて潰せる'],
+    ['SECURITY','QA',78,'穴を見つける視点を共有しあえる'],
+    ['DATA_SCIENTIST','ML_ENGINEER',92,'分析から実装まで一気通貫で価値を出せる'],
+    ['DATA_SCIENTIST','DATA_ENGINEER',88,'欲しいデータがすぐ手に入る理想の関係'],
+    ['ML_ENGINEER','DATA_ENGINEER',90,'学習データとモデルを安定して回せる'],
+    ['ML_ENGINEER','SRE',76,'モデルの運用を安定させる（MLOps）']
+  ];
+  var SYNERGY = {};
+  SYNERGY_LIST.forEach(function (x) { SYNERGY[[x[0], x[1]].sort().join('|')] = { score: x[2], note: x[3] }; });
+
+  // ---- 相性スコア（0〜100）----
+  //  55% 職種の組み合わせ（協業のしやすさ）
+  //  30% お互いの理解度（相手の職種を、自分がどれだけ「自分ごと」と感じる傾向にあるか。診断スコアの平均）
+  //  15% 過ごし方の近さ（インドア/アウトドア傾向の近さ）
+  function synergyBase(ka, kb) {
+    if (ka === kb) return { score: 62, note: '同じ職種どうし。話は早いけれど役割が被りやすいので、分担がカギ' };
+    var hit = SYNERGY[[ka, kb].sort().join('|')];
+    if (hit) return hit;
+    if (JOBS[ka].zone === JOBS[kb].zone) return { score: 68, note: '近い領域どうしで話が早い関係' };
+    return { score: 55, note: '違う視点を持ち寄ることで、新しい発想が生まれる関係' };
+  }
+  function scoreFor(p, otherKey) {
+    var m = p.jobRelativeScores;
+    var label = null;
+    // jobRelativeScoresのキーは職種ラベル。topJobKeyに対応するラベルは、保存されているtopJobsから引く。
+    // 無い場合（古いデータ）は中立値50にする。
+    if (m && typeof m === 'object') {
+      var keys = Object.keys(m);
+      for (var i = 0; i < keys.length; i++) {
+        if (labelToKey(keys[i]) === otherKey) { label = keys[i]; break; }
+      }
+      if (label !== null) return Number(m[label]) || 0;
+    }
+    return 50;
+  }
+  var LABEL_KEY_CACHE = {};
+  function labelToKey(label) {
+    if (LABEL_KEY_CACHE[label]) return LABEL_KEY_CACHE[label];
+    var table = [
+      ['PDM','PdM'],['PM','PM（'],['EM','EM（'],['UIUX','UI/UX'],['FRONTEND','フロントエンド'],['BACKEND','バックエンド'],
+      ['MOBILE','モバイル'],['ARCHITECT','アーキテクト'],['CLOUD_INFRA','クラウド'],['SRE','SRE'],['SECURITY','セキュリティ'],
+      ['QA','QA'],['DATA_SCIENTIST','データサイエンティスト'],['ML_ENGINEER','機械学習'],['DATA_ENGINEER','データエンジニア']
+    ];
+    var found = '';
+    for (var i = 0; i < table.length; i++) {
+      if (label.indexOf(table[i][1]) !== -1) { found = table[i][0]; break; }
+    }
+    LABEL_KEY_CACHE[label] = found;
+    return found;
+  }
+  function compat(a, b) {
+    var base = synergyBase(a.topJobKey, b.topJobKey);
+    var mutual = (scoreFor(a, b.topJobKey) + scoreFor(b, a.topJobKey)) / 2;
+    var io = 100 - Math.abs((Number(a.indoorPct) || 50) - (Number(b.indoorPct) || 50));
+    var total = Math.round(0.55 * base.score + 0.30 * mutual + 0.15 * io);
+    return { score: Math.max(0, Math.min(100, total)), note: base.note };
+  }
+
+  // ---- チーム全体の集計 ----
+  function analyze(members) {
+    var pairs = [], partners = {};
+    members.forEach(function (m) { partners[m.userId] = []; });
+    for (var i = 0; i < members.length; i++) {
+      for (var j = i + 1; j < members.length; j++) {
+        var c = compat(members[i], members[j]);
+        var pair = { a: members[i], b: members[j], score: c.score, note: c.note };
+        pairs.push(pair);
+        partners[members[i].userId].push({ other: members[j], score: c.score, note: c.note });
+        partners[members[j].userId].push({ other: members[i], score: c.score, note: c.note });
+      }
+    }
+    pairs.sort(function (x, y) { return y.score - x.score; });
+    Object.keys(partners).forEach(function (k) { partners[k].sort(function (x, y) { return y.score - x.score; }); });
+
+    // つながりやすさ：各メンバーの「相性の良い相手ベスト3」の平均点
+    var chem = 0;
+    if (members.length >= 2) {
+      var sum = 0;
+      members.forEach(function (m) {
+        var top = partners[m.userId].slice(0, 3);
+        sum += top.reduce(function (s, p) { return s + p.score; }, 0) / top.length;
+      });
+      chem = Math.round(sum / members.length);
+    }
+    var zoneCount = {};
+    ZONE_ORDER.forEach(function (z) { zoneCount[z] = 0; });
+    members.forEach(function (m) { zoneCount[JOBS[m.topJobKey].zone]++; });
+    var covered = ZONE_ORDER.filter(function (z) { return zoneCount[z] > 0; });
+    var missing = ZONE_ORDER.filter(function (z) { return zoneCount[z] === 0; });
+    var strongest = ZONE_ORDER.slice().sort(function (x, y) { return zoneCount[y] - zoneCount[x]; })[0];
+    return { pairs: pairs, partners: partners, chem: chem, zoneCount: zoneCount, covered: covered, missing: missing, strongest: strongest };
+  }
+
+  function headline(n, t) {
+    if (n < 2) return { title: 'まずは仲間を集めましょう', comment: '2人以上が回答すると、チームとしての相性がここに表示されます。' };
+    var title;
+    var share = t.zoneCount[t.strongest] / n;
+    if (t.covered.length === 5 && t.chem >= 75) title = '全部の役割が揃った、ドリームチーム';
+    else if (t.covered.length >= 4 && t.chem >= 70) title = 'バランス抜群の、頼れるチーム';
+    else if (t.covered.length >= 4) title = 'いろんな強みが揃った、多彩なチーム';
+    else if (share >= 0.6) title = ZONES[t.strongest].name + 'に強い、尖ったチーム';
+    else title = '個性派がそろった、伸びしろいっぱいのチーム';
+
+    var best = t.pairs[0];
+    var parts = [];
+    parts.push(n + '人で、5つの役割のうち ' + t.covered.length + ' つがカバーされています。');
+    if (t.missing.length) {
+      parts.push('まだ足りないのは「' + t.missing.map(function (z) { return ZONES[z].name; }).join('」「') + '」。ここを補う人がいると、もっと強くなります。');
+    } else {
+      parts.push('すべての役割が揃っていて、どんなプロジェクトも一通りこなせそうです。');
+    }
+    parts.push('特に ' + best.a.nickname + 'さん × ' + best.b.nickname + 'さん（相性' + best.score + '）の組み合わせが光っています。');
+    return { title: title, comment: parts.join('') };
+  }
+
+  // ---- 画面描画 ----
+  var results = [];
+  var analysis = null;
+  var members = [];
+  var selectedId = null;
+  var lastSignature = '';
+  var pollTimer = null;
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = String(s == null ? '' : s);
+    return d.innerHTML;
+  }
+  function isSafeImageUrl(u) { return typeof u === 'string' && /^https:\/\//.test(u); }
+  function scoreClass(s) { return s >= 80 ? 's-high' : (s >= 65 ? 's-mid' : 's-low'); }
+  function lineColor(s) { return s >= 80 ? '#1A9C6B' : (s >= 65 ? '#0969DA' : '#E08A00'); }
+
+  function picHtml(m) {
+    return isSafeImageUrl(m.imageUrl)
+      ? '<img src="' + esc(m.imageUrl) + '" alt="">'
+      : '<span class="emoji">' + esc(m.animalEmoji || '❓') + '</span>';
+  }
+
+  function render() {
+    members = results.filter(function (r) { return r && JOBS[r.topJobKey]; });
+    document.getElementById('countBadge').textContent = members.length + '名';
+    var root = document.getElementById('content');
+
+    if (members.length === 0) {
+      root.innerHTML = '<div class="empty-all">まだ回答者がいません。<br>診断が進むと、ここにキャラクターたちが集まります。</div>';
+      return;
+    }
+    analysis = analyze(members);
+    var h = headline(members.length, analysis);
+
+    var statsHtml =
+      '<div class="stat"><div class="label">つながりやすさ</div><div class="value">' + (members.length >= 2 ? analysis.chem : '-') + '<small>/ 100</small></div>' +
+        '<div class="sub">誰もが話せる相手がいるか（各自のベスト3の平均）</div></div>' +
+      '<div class="stat"><div class="label">役割カバー率</div><div class="value">' + analysis.covered.length + '<small>/ 5 エリア</small></div>' +
+        '<div class="sub">' + (analysis.missing.length ? '不足：' + analysis.missing.map(function (z) { return ZONES[z].name; }).join('、') : 'すべての役割が揃っています') + '</div></div>' +
+      '<div class="stat"><div class="label">チームの得意</div><div class="value" style="font-size:24px;">' + ZONES[analysis.strongest].icon + ' ' + esc(ZONES[analysis.strongest].name) + '</div>' +
+        '<div class="sub">' + analysis.zoneCount[analysis.strongest] + '人が在籍</div></div>' +
+      '<div class="stat"><div class="label">ベストペア</div><div class="value" style="font-size:22px;">' +
+        (analysis.pairs.length ? esc(analysis.pairs[0].a.nickname) + ' × ' + esc(analysis.pairs[0].b.nickname) : '-') + '</div>' +
+        '<div class="sub">' + (analysis.pairs.length ? '相性 ' + analysis.pairs[0].score : '') + '</div></div>';
+
+    var roomHtml = ZONE_ORDER.map(function (z) {
+      var zone = ZONES[z];
+      var zm = members.filter(function (m) { return JOBS[m.topJobKey].zone === z; });
+      var inner = zm.length
+        ? '<div class="chars">' + zm.map(function (m, i) {
+            return '<button type="button" class="char" data-uid="' + esc(m.userId) + '" style="--d:' + ((i * 0.37) % 3).toFixed(2) + 's">' +
+              '<div class="pic"><span class="doing">' + zone.doing + '</span>' + picHtml(m) + '</div>' +
+              '<div class="nm">' + esc(m.nickname) + '</div>' +
+              '<div class="jb">' + esc(JOBS[m.topJobKey].short) + '</div></button>';
+          }).join('') + '</div>'
+        : '<div class="zone-empty">まだ誰もいません<br><small>' + esc(zone.lack) + 'が来ると心強い</small></div>';
+      return '<div class="zone' + (zm.length ? '' : ' empty') + '" style="--zc:' + zone.color + ';--zbg:' + zone.bg + '">' +
+        '<div class="zone-title"><span>' + zone.icon + '</span><span>' + esc(zone.name) + '</span></div>' +
+        '<div class="zone-hint">' + esc(zone.hint) + '</div>' + inner + '</div>';
+    }).join('');
+
+    root.innerHTML =
+      '<div class="banner"><div class="kicker">今日のチーム診断</div><div class="title">' + esc(h.title) + '</div><div class="comment">' + esc(h.comment) + '</div></div>' +
+      '<div class="stats">' + statsHtml + '</div>' +
+      '<div class="team-main">' +
+        '<div>' +
+          '<div class="room" id="room">' + roomHtml + '<svg id="lines"></svg><svg id="pills"></svg></div>' +
+          '<div class="legend"><span><i style="background:#1A9C6B"></i>相性 80以上</span><span><i style="background:#0969DA"></i>65〜79</span><span><i style="background:#E08A00"></i>64以下</span>' +
+          '<span>※キャラをクリックすると、その人との相性が線で表示されます</span></div>' +
+        '</div>' +
+        '<div class="side" id="side"></div>' +
+      '</div>';
+
+    document.querySelectorAll('.char').forEach(function (el) {
+      el.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var uid = el.getAttribute('data-uid');
+        selectedId = (selectedId === uid) ? null : uid;
+        updateSelection();
+      });
+    });
+    document.getElementById('room').addEventListener('click', function () { selectedId = null; updateSelection(); });
+    updateSelection();
+  }
+
+  function memberById(id) {
+    for (var i = 0; i < members.length; i++) if (members[i].userId === id) return members[i];
+    return null;
+  }
+
+  function updateSelection() {
+    if (selectedId && !memberById(selectedId)) selectedId = null;
+    var partnerIds = {};
+    var drawPairs = [];
+    if (selectedId) {
+      analysis.partners[selectedId].slice(0, 3).forEach(function (p) {
+        partnerIds[p.other.userId] = true;
+        drawPairs.push({ a: memberById(selectedId), b: p.other, score: p.score });
+      });
+    } else {
+      drawPairs = analysis.pairs.slice(0, 6);
+    }
+    document.querySelectorAll('.char').forEach(function (el) {
+      var uid = el.getAttribute('data-uid');
+      el.classList.toggle('sel', uid === selectedId);
+      el.classList.toggle('partner', !!partnerIds[uid]);
+      el.classList.toggle('dim', !!selectedId && uid !== selectedId && !partnerIds[uid]);
+    });
+    renderSide();
+    drawLines(drawPairs);
+  }
+
+  function renderSide() {
+    var side = document.getElementById('side');
+    var html = '';
+    if (selectedId) {
+      var me = memberById(selectedId);
+      var list = analysis.partners[selectedId].slice(0, 3);
+      html += '<div class="panel"><h2>' + esc(me.nickname) + 'さんの 相性ベスト3</h2>' +
+        (list.length ? list.map(function (p) {
+          return '<div class="pair"><div class="score ' + scoreClass(p.score) + '">' + p.score + '</div><div>' +
+            '<div class="names">' + esc(p.other.nickname) + '（' + esc(JOBS[p.other.topJobKey].short) + '）</div>' +
+            '<div class="note">' + esc(p.note) + '</div></div></div>';
+        }).join('') : '<div class="hint">ほかの参加者が増えると表示されます。</div>') + '</div>';
+    } else {
+      html += '<div class="panel"><h2>ベストペア TOP5</h2>' +
+        (analysis.pairs.length ? analysis.pairs.slice(0, 5).map(function (p) {
+          return '<div class="pair"><div class="score ' + scoreClass(p.score) + '">' + p.score + '</div><div>' +
+            '<div class="names">' + esc(p.a.nickname) + ' × ' + esc(p.b.nickname) + '</div>' +
+            '<div class="note">' + esc(JOBS[p.a.topJobKey].short) + ' × ' + esc(JOBS[p.b.topJobKey].short) + '：' + esc(p.note) + '</div></div></div>';
+        }).join('') : '<div class="hint">2人以上が回答すると表示されます。</div>') + '</div>';
+    }
+    html += '<div class="panel"><h2>足りない役割</h2>' +
+      (analysis.missing.length
+        ? '<ul class="missing" style="margin:0;padding-left:20px;">' + analysis.missing.map(function (z) {
+            return '<li><b>' + ZONES[z].icon + ' ' + esc(ZONES[z].name) + '</b>：' + esc(ZONES[z].lack) + '</li>';
+          }).join('') + '</ul>'
+        : '<div class="hint">5つのエリアすべてに仲間がいます。</div>') + '</div>';
+    html += '<div class="panel"><h2>相性スコアの見かた</h2><div class="hint">' +
+      '職種の組み合わせ（55%）、お互いの職種への理解度（30%）、過ごし方の近さ（15%）から算出した0〜100の点数です。' +
+      '「相性が低い」=合わないではなく、「違う視点を持ち寄れる関係」という意味合いもあります。</div></div>';
+    side.innerHTML = html;
+  }
+
+  function drawLines(pairs) {
+    var room = document.getElementById('room');
+    var svg = document.getElementById('lines');
+    var pillSvg = document.getElementById('pills');
+    if (!room || !svg || !pillSvg) return;
+    var rr = room.getBoundingClientRect();
+    [svg, pillSvg].forEach(function (el) {
+      el.setAttribute('width', rr.width);
+      el.setAttribute('height', rr.height);
+      el.setAttribute('viewBox', '0 0 ' + rr.width + ' ' + rr.height);
+    });
+
+    function center(uid) {
+      var el = document.querySelector('.char[data-uid="' + uid.replace(/"/g, '') + '"] .pic');
+      if (!el) return null;
+      var r = el.getBoundingClientRect();
+      return { x: r.left - rr.left + r.width / 2, y: r.top - rr.top + r.height / 2 };
+    }
+    var out = '', pills = '';
+    pairs.forEach(function (p) {
+      var a = center(p.a.userId), b = center(p.b.userId);
+      if (!a || !b) return;
+      var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var bend = Math.min(40, len * 0.15);
+      var cx = mx - (dy / len) * bend, cy = my + (dx / len) * bend;
+      var w = Math.max(2, Math.min(6, 2 + (p.score - 50) / 10));
+      var col = lineColor(p.score);
+      out += '<path d="M' + a.x + ' ' + a.y + ' Q' + cx + ' ' + cy + ' ' + b.x + ' ' + b.y + '" fill="none" stroke="' + col +
+        '" stroke-width="' + w + '" stroke-linecap="round" opacity="0.85"/>';
+      var lx = (a.x + 2 * cx + b.x) / 4, ly = (a.y + 2 * cy + b.y) / 4;
+      pills += '<g><rect x="' + (lx - 17) + '" y="' + (ly - 11) + '" width="34" height="22" rx="11" fill="' + col + '"/>' +
+        '<text x="' + lx + '" y="' + (ly + 5) + '" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="inherit">' + p.score + '</text></g>';
+    });
+    svg.innerHTML = out;
+    pillSvg.innerHTML = pills;
+  }
+
+  // ---- データ取得（管理画面と同じ管理キー認証）----
+  function getStoredAdminKey() { return localStorage.getItem('admin_key') || ''; }
+  function promptForAdminKey() {
+    var key = window.prompt('管理キーを入力してください（GAS側のスクリプトプロパティ ADMIN_KEY と同じ値）');
+    if (key) localStorage.setItem('admin_key', key);
+    return key || '';
+  }
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    refresh();
+    pollTimer = setInterval(refresh, POLL_INTERVAL_MS);
+  }
+  function handleUnauthorized() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    localStorage.removeItem('admin_key');
+    var key = promptForAdminKey();
+    if (key) startPolling();
+    else document.getElementById('content').innerHTML = '<div class="empty-all">管理キーが必要です。<br>ページを再読み込みしてください。</div>';
+  }
+  async function refresh() {
+    if (GAS_API_URL.indexOf('PASTE_YOUR') !== -1) {
+      document.getElementById('content').innerHTML = '<div class="empty-all">config.js にGASのURLが設定されていません。<br>config.sample.js を config.js にコピーして設定してください。</div>';
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      return;
+    }
+    try {
+      var res = await fetch(GAS_API_URL + '?action=results&key=' + encodeURIComponent(getStoredAdminKey()));
+      var json = await res.json();
+      if (!json.ok) {
+        if (json.code === 'UNAUTHORIZED') { handleUnauthorized(); return; }
+        throw new Error(json.error || 'サーバーエラーが発生しました');
+      }
+      results = Array.isArray(json.data) ? json.data : [];
+      // 参加者の顔ぶれ・職種が変わった時だけ描き直す（ポーリングのたびのちらつきを防ぐ）
+      var sig = results.map(function (r) { return r.userId + ':' + r.topJobKey; }).sort().join(',');
+      if (sig !== lastSignature) { lastSignature = sig; render(); }
+    } catch (err) {
+      console.error('データ取得失敗:', err);
+    }
+  }
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { if (analysis && members.length) updateSelection(); }, 150);
+  });
+  window.addEventListener('load', function () { if (analysis && members.length) updateSelection(); });
+
+  startPolling();
+</script>
+</body>
+</html>
