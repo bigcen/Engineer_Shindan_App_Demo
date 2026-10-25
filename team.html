@@ -141,6 +141,52 @@
   .confetti { position: fixed; top: -30px; z-index: 50; font-size: 26px; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(360deg); opacity: .9; } }
   @media (prefers-reduced-motion: reduce) { .char.working .pic, .char.working .doing, .room.running .zone, .startbtn { animation: none; } }
+
+  /* ================= オフィス背景（Googleドライブ画像）の上にキャラを置く表示 ================= */
+  .office-stage { width: 100%; margin: 0 auto; }
+  @media (min-width: 769px) { .office-stage { max-width: calc((100vh - 230px) * 1.7778); min-width: 640px; } }
+  .office { position: relative; width: 100%; background: #F5F1EA; border-radius: 16px; --u: 6px; }
+  .office-bg { display: block; width: 100%; height: 100%; border-radius: 16px; user-select: none; -webkit-user-drag: none; }
+  .office .char { position: absolute; width: calc(var(--u) * var(--tile));
+    margin-left: calc(var(--u) * var(--tile) * -0.5); margin-top: calc(var(--u) * var(--tile) * -0.5); }
+  .office .char .pic { width: 100%; height: calc(var(--u) * var(--tile)); border-radius: 22%;
+    border: max(2px, calc(var(--u) * 0.22)) solid var(--zc, #fff); }
+  .office .char .pic .emoji { font-size: calc(var(--u) * var(--tile) * 0.5); }
+  .office .char .doing { font-size: max(11px, calc(var(--u) * 1.5)); right: -3px; top: -6px; }
+  .office .char .nm { width: fit-content; max-width: calc(var(--u) * var(--tile) * 1.7); margin: 2px auto 0;
+    font-size: max(9px, calc(var(--u) * 0.95)); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: rgba(255,255,255,.92); border-radius: 5px; padding: 0 3px; }
+  .office .char .jb { display: none; }
+  @media (min-width: 769px) {
+    .office .char .jb { display: block; width: fit-content; max-width: calc(var(--u) * var(--tile) * 1.7); margin: 1px auto 0;
+      font-size: max(8px, calc(var(--u) * 0.78)); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      background: rgba(255,255,255,.85); border-radius: 5px; padding: 0 3px; }
+  }
+  .office .char.sel .pic { border-color: #E5484D; }
+  .office .char.partner .pic { border-color: #1A9C6B; }
+  .office .bubble { max-width: 160px; font-size: 12px; }
+  .zlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: var(--fs-1); color: var(--color-neutral-700); }
+  .zlegend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: middle; margin-right: 4px; }
+  .team-main.office-mode { grid-template-columns: minmax(0, 1fr); }
+  .team-main.office-mode .side { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+
+  /* ---- 成長アドバイス ---- */
+  .advice { margin-top: 24px; }
+  .advice h2 { font-size: var(--fs-5); margin: 0 0 4px; }
+  .advice-sub { font-size: var(--fs-2); color: var(--color-neutral-700); margin-bottom: 14px; }
+  .advice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .acard { background: var(--color-neutral-0); border: 2px solid var(--color-neutral-100); border-radius: 16px; padding: 14px 16px; }
+  .acard.sel { border-color: #E5484D; box-shadow: 0 0 0 3px rgba(229,72,77,.15); }
+  .ahead { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .athumb { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; background: #F3EFE6; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  .athumb img { width: 100%; height: 100%; object-fit: contain; }
+  .aname { font-weight: 700; font-size: var(--fs-3); } .ajob { font-size: var(--fs-1); color: var(--color-neutral-500); }
+  .arow { display: flex; gap: 8px; padding: 7px 0; border-top: 1px solid var(--color-neutral-100); }
+  .arow:first-of-type { border-top: none; }
+  .aico { flex: 0 0 auto; font-size: 20px; line-height: 1.3; }
+  .arow b { font-size: var(--fs-1); color: var(--color-primary-600); }
+  .arow p { margin: 2px 0 0; font-size: var(--fs-2); line-height: 1.6; color: var(--color-neutral-900); }
 </style>
 </head>
 <body>
@@ -331,8 +377,73 @@
   var justFinished = false;
   var timers = [];
   var logs = [];
-  var WORK_MS = 30000;
+  var WORK_MS = 15000;
   var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // ---- オフィス背景（Googleドライブの画像。GASが「ファイル名」で探してURLを返す）----
+  //   PC用（横長 1920x1080）と スマホ用（縦長 1080x1920）を、画面幅で出し分ける。
+  //   座標はすべて、それぞれの元画像のピクセル位置（添付画像のチェア位置を解析して求めたもの）。
+  var officeUrls = null;      // { pc, mobile }
+  var officeFailed = false;   // 画像の取得・読み込みに失敗したらtrue（その場合は従来のエリア表示に切り替える）
+  var officeMode = false;     // 今の画面がオフィス背景表示かどうか
+  var officePromise = null;
+  var seatPos = {};           // userId -> {x, y}（元画像のピクセル座標）
+  var hiddenCount = 0;        // 席に入りきらなかった人数
+
+  var LAYOUTS = {
+    pc: {
+      w: 1920, h: 1080,
+      // デスク席36（6席×6島）。島ごとに、上段3席→下段3席の順
+      desks: [
+        [171,87],[309,87],[449,87],[168,280],[303,280],[448,280],
+        [617,87],[753,87],[889,87],[618,280],[761,280],[893,280],
+        [1073,87],[1211,87],[1336,87],[1071,280],[1215,280],[1335,280],
+        [173,427],[304,427],[449,427],[175,619],[312,619],[438,619],
+        [624,427],[766,427],[898,427],[628,619],[750,619],[892,619],
+        [1068,427],[1209,427],[1335,427],[1081,619],[1201,619],[1338,619]
+      ],
+      // 席が足りない時の予備席（会議テーブル・丸テーブルの空き席、キッチン前などの立ち位置）
+      overflow: [
+        [169,769],[370,769],[569,769],[169,939],[370,940],[569,940],
+        [1611,177],[1809,177],[1611,292],[1809,291],
+        [790,950],[880,950],[970,950],[1060,950],[1480,250],[1480,380]
+      ],
+      // 会話に行く場所（2人1組）：丸テーブル／会議テーブル／ソファ／会議テーブル
+      meet: [
+        [[1709,120],[1709,348]],
+        [[269,769],[269,939]],
+        [[1710,495],[1710,685]],
+        [[469,769],[469,940]]
+      ],
+      tile: 4.6   // キャラ画像の大きさ（画像幅に対する%）
+    },
+    mobile: {
+      w: 1080, h: 1920,
+      desks: [
+        [130,107],[268,107],[409,107],[127,299],[263,299],[408,299],
+        [647,107],[783,107],[919,107],[648,299],[791,299],[923,299],
+        [133,448],[271,448],[396,448],[131,640],[275,640],[394,640],
+        [653,447],[783,447],[929,447],[655,640],[792,640],[918,640],
+        [135,787],[276,787],[408,787],[137,979],[261,979],[401,979],
+        [648,787],[789,787],[915,787],[661,979],[781,979],[918,979]
+      ],
+      overflow: [
+        [130,1689],[185,1239],[394,1239],[394,1360],[189,1366],
+        [150,1085],[300,1085],[450,1085],[600,1085],[750,1085],[900,1085]
+      ],
+      meet: [
+        [[289,1179],[289,1420]],
+        [[740,1215],[740,1425]],
+        [[229,1689],[329,1689]],
+        [[429,1689],[529,1689]]
+      ],
+      tile: 9.4
+    }
+  };
+
+  function isMobileLayout() { return window.matchMedia('(max-width: 768px)').matches; }
+  function currentLayout() { return isMobileLayout() ? LAYOUTS.mobile : LAYOUTS.pc; }
+  function officeActive() { return !!(officeUrls && officeUrls.pc && officeUrls.mobile && !officeFailed); }
 
   function esc(s) {
     var d = document.createElement('div');
@@ -360,10 +471,31 @@
     analysis = members.length ? analyze(members) : null;
   }
 
-  // 2人以上いて、まだ「働かせて」いない間は開始前の画面。1人以下なら開始ボタンは出さず、そのまま結果欄を出す。
-  function viewMode() {
-    if (phase === 'ready' && members.length < 2) return 'done';
-    return phase;
+  // エリア順（企画→デザイン→設計→基盤→データ）で並べる。席も成長アドバイスの並びもこの順。
+  function sortedForSeating(list) {
+    return list.slice().sort(function (a, b) {
+      var za = ZONE_ORDER.indexOf(JOBS[a.topJobKey].zone), zb = ZONE_ORDER.indexOf(JOBS[b.topJobKey].zone);
+      if (za !== zb) return za - zb;
+      if (a.topJobKey !== b.topJobKey) return a.topJobKey < b.topJobKey ? -1 : 1;
+      return String(a.nickname).localeCompare(String(b.nickname));
+    });
+  }
+
+  // 同じエリアの人がなるべく近い島に座るよう、エリア順に席を埋める。席に入りきらない人は表示しない（人数だけ案内する）。
+  function assignSeats(layout, list) {
+    var seats = layout.desks.concat(layout.overflow);
+    var pos = {};
+    hiddenCount = 0;
+    sortedForSeating(list).forEach(function (m, i) {
+      if (seats[i]) pos[m.userId] = { x: seats[i][0], y: seats[i][1] };
+      else hiddenCount++;
+    });
+    return pos;
+  }
+
+  function applyUnit() {
+    var room = document.getElementById('room');
+    if (room && room.classList.contains('office')) room.style.setProperty('--u', (room.clientWidth / 100) + 'px');
   }
 
   // 診断が更新された時に呼ばれる。働いている最中は画面を壊さないよう、終わってから反映する。
@@ -371,6 +503,12 @@
     compute();
     if (phase === 'running') { pendingRender = true; return; }
     buildContent();
+  }
+
+  // 2人以上いて、まだ「働かせて」いない間は開始前の画面。1人以下なら開始ボタンは出さず、そのまま結果欄を出す。
+  function viewMode() {
+    if (phase === 'ready' && members.length < 2) return 'done';
+    return phase;
   }
 
   function bannerHtml(h, reveal) {
@@ -389,17 +527,21 @@
         (analysis.pairs.length ? esc(analysis.pairs[0].a.nickname) + ' × ' + esc(analysis.pairs[0].b.nickname) : '-') + '</div>' +
         '<div class="sub">' + (analysis.pairs.length ? '相性 ' + analysis.pairs[0].score : '') + '</div></div></div>';
   }
-  function roomHtml(withLines, mode) {
+
+  function charHtml(m, i, zone, styleExtra) {
+    return '<button type="button" class="char" data-uid="' + esc(m.userId) + '" title="' + esc(m.nickname) + '" style="--d:' + ((i * 0.37) % 3).toFixed(2) + 's;--zc:' + zone.color + ';' + (styleExtra || '') + '">' +
+      '<div class="pic"><span class="doing">' + zone.doing + '</span>' + picHtml(m) + '</div>' +
+      '<div class="nm">' + esc(m.nickname) + '</div>' +
+      '<div class="jb">' + esc(JOBS[m.topJobKey].short) + '</div></button>';
+  }
+
+  // --- 従来のエリア表示（オフィス画像が取れない時のフォールバック）---
+  function zoneRoomHtml(withLines, mode) {
     var zones = ZONE_ORDER.map(function (z) {
       var zone = ZONES[z];
       var zm = members.filter(function (m) { return JOBS[m.topJobKey].zone === z; });
       var inner = zm.length
-        ? '<div class="chars">' + zm.map(function (m, i) {
-            return '<button type="button" class="char" data-uid="' + esc(m.userId) + '" style="--d:' + ((i * 0.37) % 3).toFixed(2) + 's">' +
-              '<div class="pic"><span class="doing">' + zone.doing + '</span>' + picHtml(m) + '</div>' +
-              '<div class="nm">' + esc(m.nickname) + '</div>' +
-              '<div class="jb">' + esc(JOBS[m.topJobKey].short) + '</div></button>';
-          }).join('') + '</div>'
+        ? '<div class="chars">' + zm.map(function (m, i) { return charHtml(m, i, zone); }).join('') + '</div>'
         : '<div class="zone-empty">まだ誰もいません<br><small>' + esc(zone.lack) + 'が来ると心強い</small></div>';
       return '<div class="zone' + (zm.length ? '' : ' empty') + '" style="--zc:' + zone.color + ';--zbg:' + zone.bg + '">' +
         '<div class="zone-title"><span>' + zone.icon + '</span><span>' + esc(zone.name) + '</span></div>' +
@@ -409,36 +551,90 @@
       (withLines ? '<svg id="lines"></svg><svg id="pills"></svg>' : '') + '</div>';
   }
 
+  // --- オフィス画像の上にキャラを配置する表示 ---
+  function zoneLegendHtml() {
+    return '<div class="zlegend">' + ZONE_ORDER.map(function (z) {
+      return '<span><i style="background:' + ZONES[z].color + '"></i>' + ZONES[z].icon + ' ' + esc(ZONES[z].name) + '</span>';
+    }).join('') + '<span>※枠の色＝エリア（職種グループ）</span></div>';
+  }
+  function officeRoomHtml(withLines, mode) {
+    var mobile = isMobileLayout();
+    var L = currentLayout();
+    seatPos = assignSeats(L, members);
+    var chars = sortedForSeating(members).map(function (m, i) {
+      var p = seatPos[m.userId];
+      if (!p) return '';
+      return charHtml(m, i, ZONES[JOBS[m.topJobKey].zone], 'left:' + (p.x / L.w * 100).toFixed(3) + '%;top:' + (p.y / L.h * 100).toFixed(3) + '%;');
+    }).join('');
+    return '<div class="office-stage"><div class="office' + (mobile ? ' m' : '') + (mode === 'done' ? '' : ' noclick') + '" id="room" style="aspect-ratio:' + L.w + ' / ' + L.h + ';--tile:' + L.tile + '">' +
+      '<img class="office-bg" id="officeBg" src="' + esc(mobile ? officeUrls.mobile : officeUrls.pc) + '" alt="オフィスのフロア図">' +
+      chars + (withLines ? '<svg id="lines"></svg><svg id="pills"></svg>' : '') + '</div></div>' +
+      zoneLegendHtml() +
+      (hiddenCount ? '<div class="hint" style="margin-top:6px;">※席に入りきらなかった ' + hiddenCount + '名は、この画面には表示されていません（結果の集計には含まれます）。</div>' : '');
+  }
+
+  // --- 成長アドバイス ---
+  function bestPartnerOf(m) {
+    var list = analysis && analysis.partners[m.userId];
+    return list && list.length ? list[0] : null;
+  }
+  function adviceRowsHtml(m) {
+    var best = bestPartnerOf(m);
+    return '<div class="arow"><span class="aico">🗣</span><div><b>コミュニケーション</b><p>' + esc(m.communicationTip || 'ー') + '</p></div></div>' +
+      '<div class="arow"><span class="aico">🔧</span><div><b>磨くと良い技術</b><p>' + esc(m.skillTip || 'ー') + '</p></div></div>' +
+      (best ? '<div class="arow"><span class="aico">🤝</span><div><b>組むと伸びる相手</b><p>' + esc(best.other.nickname) + 'さん（' + esc(JOBS[best.other.topJobKey].short) + '）— ' + esc(best.note) + '</p></div></div>' : '');
+  }
+  function adviceHtml(reveal) {
+    var cards = sortedForSeating(members).map(function (m) {
+      return '<div class="acard" data-uid="' + esc(m.userId) + '"><div class="ahead"><div class="athumb">' + picHtml(m) + '</div><div>' +
+        '<div class="aname">' + esc(m.nickname) + '</div><div class="ajob">' + esc(JOBS[m.topJobKey].short) + '・' + esc(m.animalName || '') + '</div></div></div>' +
+        adviceRowsHtml(m) + '</div>';
+    }).join('');
+    return '<section class="advice' + (reveal ? ' reveal d3' : '') + '"><h2>🌱 もっと活躍するために：みんなの成長アドバイス</h2>' +
+      '<div class="advice-sub">診断結果（職種・傾向）をもとにした、話し方と、次に磨くと良い技術の提案です。</div>' +
+      '<div class="advice-grid">' + cards + '</div></section>';
+  }
+
   function buildContent() {
     var root = document.getElementById('content');
     if (!members.length) {
       root.innerHTML = '<div class="empty-all">まだ回答者がいません。<br>診断が進むと、ここにキャラクターたちが集まります。</div>';
       return;
     }
+    officeMode = officeActive();
     var mode = viewMode();
     var h = headline(members.length, analysis);
     var reveal = justFinished;
-    var top = '', main = '';
+    var top = '', main = '', after = '';
+    var room = function (withLines) { return officeMode ? officeRoomHtml(withLines, mode) : zoneRoomHtml(withLines, mode); };
 
     if (mode === 'ready') {
       top = '<div class="startbar"><button type="button" class="startbtn" id="startBtn">▶ みんなを働かせてみる</button>' +
-        '<div class="startnote">約15秒、オフィスでの働きぶりをお見せします。そのあと相性の結果を発表します</div></div>';
-      main = '<div class="team-main pre"><div>' + roomHtml(false, mode) + '</div></div>';
+        '<div class="startnote">約15秒、オフィスでの働きぶりをお見せします。そのあと相性の結果と、成長アドバイスを発表します</div></div>';
+      main = '<div class="team-main pre"><div>' + room(false) + '</div></div>';
     } else if (mode === 'running') {
       top = '<div class="hud"><div class="hud-top"><b id="stageName">キックオフ</b><span id="pct">0%</span></div>' +
         '<div class="bar"><div class="fill" id="fill"></div></div><ul class="ticker" id="ticker"></ul></div>';
-      main = '<div class="team-main pre"><div>' + roomHtml(false, mode) + '</div></div>';
+      main = '<div class="team-main pre"><div>' + room(false) + '</div></div>';
     } else {
       top = (members.length >= 2 ? '<div class="startbar small"><button type="button" class="startbtn ghost" id="startBtn">↻ もう一度働かせる</button></div>' : '') +
         bannerHtml(h, reveal) + statsHtml(reveal);
-      main = '<div class="team-main' + (reveal ? ' reveal d3' : '') + '"><div>' + roomHtml(true, mode) +
+      main = '<div class="team-main' + (officeMode ? ' office-mode' : '') + (reveal ? ' reveal d3' : '') + '"><div>' + room(true) +
         '<div class="legend"><span><i style="background:#1A9C6B"></i>相性 80以上</span><span><i style="background:#0969DA"></i>65〜79</span><span><i style="background:#E08A00"></i>64以下</span>' +
         '<span>※キャラをクリックすると、その人との相性が線で表示されます</span></div></div><div class="side" id="side"></div></div>';
+      after = adviceHtml(reveal);
     }
-    root.innerHTML = top + main;
+    root.innerHTML = top + main + after;
+    applyUnit();
 
     var sb = document.getElementById('startBtn');
     if (sb) sb.addEventListener('click', startRun);
+
+    var bg = document.getElementById('officeBg');
+    if (bg) bg.addEventListener('error', function () {
+      officeFailed = true;            // 画像が読めない時は、従来のエリア表示に切り替える
+      if (phase !== 'running') render(); else pendingRender = true;
+    });
 
     if (mode === 'done') {
       document.querySelectorAll('.char').forEach(function (el) {
@@ -472,15 +668,16 @@
     if (sn) sn.textContent = p < 25 ? 'キックオフ' : (p < 55 ? '設計・実装' : (p < 85 ? 'テスト・運用' : 'リリース準備'));
   }
 
-  // 同じ人が重ならないペアを最大4組選ぶ。
-  // 歩く演出が映えるよう、まず「別のエリアにいる」相性の高いペアを優先し、足りなければ同じエリアのペアで補う。
-  // 盛り上がるよう、相性が低い順→最後に最高のペアの順で演出する。
+  // 同じ人が重ならないペアを最大4組選ぶ。歩く演出が映えるよう、まず「別のエリアにいる」相性の高いペアを優先し、
+  // 足りなければ同じエリアのペアで補う。盛り上がるよう、相性が低い順→最後に最高のペアの順で演出する。
   function pickWorkPairs() {
     var used = {}, picked = [];
+    var seated = function (m) { return !officeMode || !!seatPos[m.userId]; };
     var maxPairs = Math.min(4, Math.floor(members.length / 2));
     function pass(crossOnly) {
       for (var i = 0; i < analysis.pairs.length && picked.length < maxPairs; i++) {
         var p = analysis.pairs[i];
+        if (!seated(p.a) || !seated(p.b)) continue;
         if (used[p.a.userId] || used[p.b.userId]) continue;
         if (crossOnly && JOBS[p.a.topJobKey].zone === JOBS[p.b.topJobKey].zone) continue;
         used[p.a.userId] = used[p.b.userId] = true;
@@ -522,8 +719,8 @@
     setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 1700);
   }
 
-  // 2人が部屋の中央付近まで歩いて集まり、会話して、席に戻る
-  function collaborate(pair) {
+  // 2人が会話の場所（丸テーブル・会議テーブル・ソファなど）まで、オフィスの上を歩いて移動し、会話して、席に戻る
+  function collaborate(pair, k) {
     if (phase !== 'running') return;
     var ea = charEl(pair.a.userId), eb = charEl(pair.b.userId);
     var room = document.getElementById('room');
@@ -533,19 +730,31 @@
     var rb = eb.querySelector('.pic').getBoundingClientRect();
     var ca = { x: ra.left + ra.width / 2, y: ra.top + ra.height / 2 };
     var cb = { x: rb.left + rb.width / 2, y: rb.top + rb.height / 2 };
-    var mx = (ca.x + cb.x) / 2, my = (ca.y + cb.y) / 2;
-    var gap = ra.width / 2 + 8;
+    var targetA, targetB;   // 画面（viewport）上の移動先の中心座標
+
+    if (officeMode) {
+      var L = currentLayout();
+      var scale = room.clientWidth / L.w;
+      var spot = L.meet[k % L.meet.length];
+      targetA = { x: rr.left + spot[0][0] * scale, y: rr.top + spot[0][1] * scale };
+      targetB = { x: rr.left + spot[1][0] * scale, y: rr.top + spot[1][1] * scale };
+    } else {
+      var mx = (ca.x + cb.x) / 2, my = (ca.y + cb.y) / 2, gap = ra.width / 2 + 8;
+      targetA = { x: mx - gap, y: my };
+      targetB = { x: mx + gap, y: my };
+    }
 
     ea.classList.add('walking'); eb.classList.add('walking');
-    ea.style.transform = 'translate(' + (mx - gap - ca.x) + 'px,' + (my - ca.y) + 'px)';
-    eb.style.transform = 'translate(' + (mx + gap - cb.x) + 'px,' + (my - cb.y) + 'px)';
+    ea.style.transform = 'translate(' + (targetA.x - ca.x) + 'px,' + (targetA.y - ca.y) + 'px)';
+    eb.style.transform = 'translate(' + (targetB.x - cb.x) + 'px,' + (targetB.y - cb.y) + 'px)';
     log('💬 ' + pair.a.nickname + 'さん × ' + pair.b.nickname + 'さん が' + (pair.score >= 80 ? 'ばっちり連携中！' : (pair.score >= 65 ? '相談中…' : '意見交換中…')) + '（相性' + pair.score + '）');
 
     var lines = dialog(pair);
-    var topY = my - ra.height / 2 - 6;
-    later(function () { bubble(rr, mx - gap, topY, lines[0]); }, 1200);
-    later(function () { bubble(rr, mx + gap, topY, lines[1]); }, 2000);
-    later(function () { spark(rr, mx, topY - 30, pair.score >= 80 ? '💞' : (pair.score >= 65 ? '✨' : '💡')); }, 2300);
+    var up = ra.height / 2 + 6;
+    var mid = { x: (targetA.x + targetB.x) / 2, y: (targetA.y + targetB.y) / 2 };
+    later(function () { bubble(rr, targetA.x, targetA.y - up, lines[0]); }, 1200);
+    later(function () { bubble(rr, targetB.x, targetB.y - up, lines[1]); }, 2000);
+    later(function () { spark(rr, mid.x, mid.y - up - 24, pair.score >= 80 ? '💞' : (pair.score >= 65 ? '✨' : '💡')); }, 2300);
     later(function () { ea.style.transform = ''; eb.style.transform = ''; }, 3100);
     later(function () { ea.classList.remove('walking'); eb.classList.remove('walking'); }, 4300);
   }
@@ -576,7 +785,7 @@
     log('🚀 キックオフ！ みんなが席について仕事を始めました');
     if (!REDUCED) {
       pickWorkPairs().forEach(function (pair, k) {
-        later(function () { collaborate(pair); }, 2200 + k * 3000);
+        later(function () { collaborate(pair, k); }, 2200 + k * 3000);
       });
       later(function () { log('🔍 レビューとテストの真っ最中…'); }, Math.round(duration * 0.64));
     }
@@ -621,13 +830,16 @@
         drawPairs.push({ a: memberById(selectedId), b: p.other, score: p.score });
       });
     } else {
-      drawPairs = analysis.pairs.slice(0, 6);
+      drawPairs = analysis.pairs.filter(function (p) { return !officeMode || (seatPos[p.a.userId] && seatPos[p.b.userId]); }).slice(0, 6);
     }
     document.querySelectorAll('.char').forEach(function (el) {
       var uid = el.getAttribute('data-uid');
       el.classList.toggle('sel', uid === selectedId);
       el.classList.toggle('partner', !!partnerIds[uid]);
       el.classList.toggle('dim', !!selectedId && uid !== selectedId && !partnerIds[uid]);
+    });
+    document.querySelectorAll('.acard').forEach(function (el) {
+      el.classList.toggle('sel', el.getAttribute('data-uid') === selectedId);
     });
     renderSide();
     drawLines(drawPairs);
@@ -646,6 +858,7 @@
             '<div class="names">' + esc(p.other.nickname) + '（' + esc(JOBS[p.other.topJobKey].short) + '）</div>' +
             '<div class="note">' + esc(p.note) + '</div></div></div>';
         }).join('') : '<div class="hint">ほかの参加者が増えると表示されます。</div>') + '</div>';
+      html += '<div class="panel"><h2>' + esc(me.nickname) + 'さんがもっと活躍するには</h2>' + adviceRowsHtml(me) + '</div>';
     } else {
       html += '<div class="panel"><h2>ベストペア TOP5</h2>' +
         (analysis.pairs.length ? analysis.pairs.slice(0, 5).map(function (p) {
@@ -724,6 +937,18 @@
     if (key) startPolling();
     else document.getElementById('content').innerHTML = '<div class="empty-all">管理キーが必要です。<br>ページを再読み込みしてください。</div>';
   }
+
+  // オフィス背景画像のURLをGASから取得する（公開情報なので認証不要）。
+  // 取得に時間がかかっても画面が出ないままにならないよう、最大4.5秒で待つのをやめる（その場合は後から切り替わる）。
+  function fetchOfficeUrls() {
+    if (GAS_API_URL.indexOf('PASTE_YOUR') !== -1) return Promise.resolve();
+    var f = fetch(GAS_API_URL + '?action=office').then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok && j.data && j.data.pc && j.data.mobile) officeUrls = j.data;
+    }).catch(function () {});
+    var t = new Promise(function (res) { setTimeout(res, 4500); });
+    return Promise.race([f, t]);
+  }
+
   async function refresh() {
     if (GAS_API_URL.indexOf('PASTE_YOUR') !== -1) {
       document.getElementById('content').innerHTML = '<div class="empty-all">config.js にGASのURLが設定されていません。<br>config.sample.js を config.js にコピーして設定してください。</div>';
@@ -731,6 +956,7 @@
       return;
     }
     try {
+      if (officePromise) await officePromise;
       var res = await fetch(GAS_API_URL + '?action=results&key=' + encodeURIComponent(getStoredAdminKey()));
       var json = await res.json();
       if (!json.ok) {
@@ -738,8 +964,9 @@
         throw new Error(json.error || 'サーバーエラーが発生しました');
       }
       results = Array.isArray(json.data) ? json.data : [];
-      // 参加者の顔ぶれ・職種が変わった時だけ描き直す（ポーリングのたびのちらつきを防ぐ）
-      var sig = results.map(function (r) { return r.userId + ':' + r.topJobKey; }).sort().join(',');
+      // 参加者の顔ぶれ・職種・表示方式（オフィス画像/エリア、PC/スマホ）が変わった時だけ描き直す（ポーリングのたびのちらつきを防ぐ）
+      var sig = results.map(function (r) { return r.userId + ':' + r.topJobKey; }).sort().join(',') +
+        '|' + officeActive() + '|' + isMobileLayout();
       if (sig !== lastSignature) { lastSignature = sig; render(); }
     } catch (err) {
       console.error('データ取得失敗:', err);
@@ -747,10 +974,21 @@
   }
 
   var resizeTimer = null;
-  function redrawIfDone() { if (viewMode() === 'done' && analysis && members.length) updateSelection(); }
-  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawIfDone, 150); });
-  window.addEventListener('load', redrawIfDone);
+  function onResize() {
+    // PC⇔スマホの切り替え時は、画像と座標が変わるので描き直す。それ以外は大きさの再計算と線の描き直しだけ。
+    var sig = officeActive() + '|' + isMobileLayout();
+    if (members.length && phase !== 'running' && lastSignature && lastSignature.split('|').slice(1).join('|') !== sig) {
+      lastSignature = lastSignature.split('|')[0] + '|' + sig;
+      render();
+      return;
+    }
+    applyUnit();
+    if (viewMode() === 'done' && analysis && members.length) updateSelection();
+  }
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(onResize, 150); });
+  window.addEventListener('load', onResize);
 
+  officePromise = fetchOfficeUrls();
   startPolling();
 </script>
 </body>
