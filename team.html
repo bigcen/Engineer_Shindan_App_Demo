@@ -145,8 +145,9 @@
   /* ================= オフィス背景（Googleドライブ画像）の上にキャラを置く表示 ================= */
   /* 参加者は最大10名想定。オフィスの表示サイズもそれに合わせて小さめにする（PC・モバイル共通の考え方） */
   .office-stage { width: 100%; margin: 0 auto; }
-  @media (min-width: 769px) { .office-stage { max-width: min(880px, calc((100vh - 230px) * 1.794)); min-width: min(640px, 100%); } }
-  @media (max-width: 768px) { .office-stage { width: 88%; } }
+  /* オフィスは画面いっぱいに大きく表示する（全体が画面に収まる範囲で最大化） */
+  @media (min-width: 769px) { .office-stage { max-width: calc((100vh - 170px) * 1.794); max-width: calc((100dvh - 170px) * 1.794); } }
+  @media (max-width: 768px) { .office-stage { width: 100%; } }
   .office { position: relative; width: 100%; background: #F5F1EA; border-radius: 16px; --u: 6px; }
   .office-bg { display: block; width: 100%; height: 100%; border-radius: 16px; user-select: none; -webkit-user-drag: none; }
   .office .char { position: absolute; width: calc(var(--u) * var(--tile));
