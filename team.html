@@ -405,10 +405,13 @@
         [124,62],[246,60],[372,60],[126,242],[244,242],[372,240],
         [620,212],[734,212],[839,211],[625,393],[732,393],[838,393]
       ],
-      // 予備スポット（画像に椅子は描かれていない場所での立ち位置：丸テーブル周り・カウンター前など）
+      // 指揮官席（左下の大机の手前）：企画・マネジメント（PM/PdM/EM）用
+      plan: [ [105,578],[205,578],[305,578] ],
+      // 丸テーブルの席：デザイン・フロント（UI/UX・フロントエンド・モバイル）用
+      front: [ [1022,58],[963,93],[1083,93],[963,163],[1083,162],[1022,197] ],
+      // 予備スポット（画像に椅子は描かれていない場所での立ち位置）
       overflow: [
-        [84,454],[206,454],[328,454],[84,557],[206,558],[328,558],
-        [963,93],[1083,93],[963,163],[1083,162],
+        [84,454],[206,454],[328,454],
         [462,564],[517,564],[572,564],[627,564],[883,137],[883,217]
       ],
       // 会話に行く場所（2人1組）：丸テーブル／会議テーブル／ソファ／会議テーブル
@@ -428,8 +431,12 @@
         [118,92],[298,90],[481,92],[117,365],[291,363],[480,365],
         [528,488],[703,488],[880,488],[528,761],[716,761],[886,761]
       ],
+      // 指揮官席（下部の大机の手前）：企画・マネジメント（PM/PdM/EM）用
+      plan: [ [135,1812],[285,1812],[435,1812] ],
+      // 丸テーブルの席：デザイン・フロント（UI/UX・フロントエンド・モバイル）用
+      front: [ [258,1147],[153,1207],[363,1207],[153,1328],[364,1346],[258,1389] ],
       overflow: [
-        [98,1657],[153,1207],[362,1207],[362,1328],[157,1334],
+        [98,1657],
         [118,1053],[268,1053],[418,1053],[568,1053],[718,1053],[868,1053]
       ],
       meet: [
@@ -482,18 +489,32 @@
     });
   }
 
-  // 席はランダムに割り当てる（開くたびに座席の並びが変わる）。
+  // 席は職種ゾーンに合わせて割り当てる（ゾーン内はランダム。開くたびに並びは変わる）。
+  // 企画・マネジメント（PM/PdM/EM）は左下の大机の指揮官席、デザイン・フロント（UI/UX等）は丸テーブル、
+  // それ以外（設計・基盤・データ）はデスク島。ゾーンの席が足りなければ、空いている席へ回す。
   // 席に入りきらない人は表示しない（人数だけ案内する）。
   function assignSeats(layout, list) {
-    var seats = layout.desks.concat(layout.overflow);
-    for (var i = seats.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = seats[i]; seats[i] = seats[j]; seats[j] = t;
+    function shuffled(arr) {
+      var a = (arr || []).slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
     }
+    var pools = {
+      plan: shuffled(layout.plan),
+      front: shuffled(layout.front),
+      desk: shuffled(layout.desks),
+      over: shuffled(layout.overflow)
+    };
     var pos = {};
     hiddenCount = 0;
-    list.forEach(function (m, i) {
-      if (seats[i]) pos[m.userId] = { x: seats[i][0], y: seats[i][1] };
+    list.forEach(function (m) {
+      var zone = JOBS[m.topJobKey] ? JOBS[m.topJobKey].zone : 'back';
+      var pref = zone === 'plan' ? pools.plan : (zone === 'front' ? pools.front : pools.desk);
+      var spot = pref.shift() || pools.desk.shift() || pools.front.shift() || pools.plan.shift() || pools.over.shift();
+      if (spot) pos[m.userId] = { x: spot[0], y: spot[1] };
       else hiddenCount++;
     });
     return pos;
