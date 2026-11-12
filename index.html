@@ -79,6 +79,11 @@
         管理画面（みんなの結果）を開く
       </a>
       <p class="muted" style="font-size:var(--fs-1); margin:var(--space-2) 0 0;">※管理キーをご存じの方のみ閲覧できます</p>
+
+      <a class="btn btn-secondary mt-6" href="team.html" target="_blank" rel="noopener">
+        <span class="material-symbols-rounded">groups</span>
+        オフィスで働く様子を見る
+      </a>
     </div>
   </div>
 
@@ -270,13 +275,30 @@
       nextBtn.disabled = true;
       nextBtn.textContent = '診断中...';
 
-      try {
-        await callApi('submit', { userId: UID, nickname: NICKNAME, answers: answers });
+      // AI生成に数分かかることがあるため、待っていることが分かるよう表示を切り替える
+      var waitTimer = setTimeout(function () {
+        nextBtn.textContent = 'AI診断中…（数分かかることがあります。そのままお待ちください）';
+      }, 12000);
+
+      function showResult() {
         document.getElementById('resultMessage').innerHTML =
           (NICKNAME ? escapeHtml(NICKNAME) + 'さんの' : '') + '診断結果を送信しました。<br>' +
           'あなたの適性職種・キャラクターなどは、<br>この後、司会のスクリーンで発表されます。お楽しみに！';
         showScreen('result');
+      }
+
+      try {
+        await callApi('submit', { userId: UID, nickname: NICKNAME, answers: answers });
+        clearTimeout(waitTimer);
+        showResult();
       } catch (err) {
+        clearTimeout(waitTimer);
+        // 通信が切れる前にサーバー側で送信が完了していた場合、再送は
+        // 「ユーザー登録が確認できませんでした」になる。その場合は送信済みとして扱い、完了画面へ進む。
+        if (err && err.message && err.message.indexOf('ユーザー登録が確認できません') !== -1) {
+          showResult();
+          return;
+        }
         submitInFlight = false;
         nextBtn.disabled = false;
         updateNav();

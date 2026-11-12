@@ -127,7 +127,7 @@
 
   .bubble { position: absolute; z-index: 12; transform: translate(-50%, -100%); max-width: 190px; background: #fff; color: #1D2129;
     border: 2px solid var(--color-primary-500); border-radius: 14px; padding: 6px 10px; font-size: 13px; font-weight: 700; line-height: 1.35;
-    box-shadow: 0 3px 10px rgba(0,0,0,.2); pointer-events: none; animation: bubbleIn 1.9s ease both; }
+    box-shadow: 0 3px 10px rgba(0,0,0,.2); pointer-events: none; animation: bubbleIn 3.3s ease both; }
   .bubble::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 12px; background: #fff;
     border-right: 2px solid var(--color-primary-500); border-bottom: 2px solid var(--color-primary-500); transform: translateX(-50%) rotate(45deg); }
   @keyframes bubbleIn { 0% { opacity: 0; transform: translate(-50%, -80%) scale(.8); } 12%,80% { opacity: 1; transform: translate(-50%, -100%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -112%) scale(1); } }
@@ -145,8 +145,9 @@
   /* ================= オフィス背景（Googleドライブ画像）の上にキャラを置く表示 ================= */
   /* 参加者は最大10名想定。オフィスの表示サイズもそれに合わせて小さめにする（PC・モバイル共通の考え方） */
   .office-stage { width: 100%; margin: 0 auto; }
-  @media (min-width: 769px) { .office-stage { max-width: min(880px, calc((100vh - 230px) * 1.7778)); min-width: min(640px, 100%); } }
-  @media (max-width: 768px) { .office-stage { width: 88%; } }
+  /* オフィスは画面いっぱいに大きく表示する（全体が画面に収まる範囲で最大化） */
+  @media (min-width: 769px) { .office-stage { max-width: calc((100vh - 170px) * 1.794); max-width: calc((100dvh - 170px) * 1.794); } }
+  @media (max-width: 768px) { .office-stage { width: 100%; } }
   .office { position: relative; width: 100%; background: #F5F1EA; border-radius: 16px; --u: 6px; }
   .office-bg { display: block; width: 100%; height: 100%; border-radius: 16px; user-select: none; -webkit-user-drag: none; }
   .office .char { position: absolute; width: calc(var(--u) * var(--tile));
@@ -166,7 +167,7 @@
   }
   .office .char.sel .pic { border-color: #E5484D; }
   .office .char.partner .pic { border-color: #1A9C6B; }
-  .office .bubble { max-width: 160px; font-size: 12px; }
+  .office .bubble { max-width: 215px; font-size: 14px; }
   .zlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: var(--fs-1); color: var(--color-neutral-700); }
   .zlegend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: middle; margin-right: 4px; }
   .team-main.office-mode { grid-template-columns: minmax(0, 1fr); }
@@ -395,44 +396,47 @@
 
   var LAYOUTS = {
     pc: {
-      w: 1920, h: 1080,
-      // デスク席10（最大10名想定）。全6島に分散配置し、同じ島でも対角寄りの席を選んで、座席がばらけるようにする。
-      // 11名以降は overflow（会議テーブル等の予備席）を使い、それも埋まれば表示しない（人数だけ案内する）。
+      // 座標は切り抜き済み背景画像（オフィスフロア_PC.png / 1132x631）のピクセル座標。
+      // 画像を差し替える場合は、この座標系とセットで扱うこと。
+      w: 1132, h: 631,
+      // デスク席12（想定10名＋予備2）。背景画像の島は2つだけを大きく描いてある（左上と中央右）。
+      // 13名以降は overflow（会議テーブル等の予備席）を使い、それも埋まれば表示しない（人数だけ案内する）。
       desks: [
-        [171,87],[448,280],[753,87],[618,280],[1336,87],[1071,280],
-        [304,427],[175,619],[766,427],[1335,427]
+        [124,62],[246,60],[372,60],[126,242],[244,242],[372,240],
+        [620,212],[734,212],[839,211],[625,393],[732,393],[838,393]
       ],
-      // 席が足りない時の予備席（会議テーブル・丸テーブルの空き席、キッチン前などの立ち位置）
+      // 予備スポット（画像に椅子は描かれていない場所での立ち位置：丸テーブル周り・カウンター前など）
       overflow: [
-        [169,769],[370,769],[569,769],[169,939],[370,940],[569,940],
-        [1611,177],[1809,177],[1611,292],[1809,291],
-        [790,950],[880,950],[970,950],[1060,950],[1480,250],[1480,380]
+        [84,454],[206,454],[328,454],[84,557],[206,558],[328,558],
+        [963,93],[1083,93],[963,163],[1083,162],
+        [462,564],[517,564],[572,564],[627,564],[883,137],[883,217]
       ],
       // 会話に行く場所（2人1組）：丸テーブル／会議テーブル／ソファ／会議テーブル
       meet: [
-        [[1709,120],[1709,348]],
-        [[269,769],[269,939]],
-        [[1710,495],[1710,685]],
-        [[469,769],[469,940]]
+        [[1022,58],[1022,197]],
+        [[145,454],[145,557]],
+        [[1023,287],[1023,402]],
+        [[267,454],[267,558]]
       ],
       tile: 4.6   // キャラ画像の大きさ（画像幅に対する%）
     },
     mobile: {
-      w: 1080, h: 1920,
-      // デスク席10（最大10名想定）。PC版と同じく、全6島に分散配置して座席がばらけるようにする。
+      // 座標は切り抜き済み背景画像（オフィスフロア_モバイル.png / 1016x1856）のピクセル座標。
+      w: 1016, h: 1856,
+      // デスク席12（想定10名＋予備2）。背景画像の島は2つだけを大きく描いてある（左上と中央右）。
       desks: [
-        [130,107],[408,299],[783,107],[648,299],[396,448],[131,640],
-        [929,447],[655,640],[276,787],[915,787]
+        [118,92],[298,90],[481,92],[117,365],[291,363],[480,365],
+        [528,488],[703,488],[880,488],[528,761],[716,761],[886,761]
       ],
       overflow: [
-        [130,1689],[185,1239],[394,1239],[394,1360],[189,1366],
-        [150,1085],[300,1085],[450,1085],[600,1085],[750,1085],[900,1085]
+        [98,1657],[153,1207],[362,1207],[362,1328],[157,1334],
+        [118,1053],[268,1053],[418,1053],[568,1053],[718,1053],[868,1053]
       ],
       meet: [
-        [[289,1179],[289,1420]],
-        [[740,1215],[740,1425]],
-        [[229,1689],[329,1689]],
-        [[429,1689],[529,1689]]
+        [[257,1147],[257,1388]],
+        [[708,1183],[708,1393]],
+        [[197,1657],[297,1657]],
+        [[397,1657],[497,1657]]
       ],
       tile: 9.4
     }
@@ -478,13 +482,17 @@
     });
   }
 
-  // エリア順に席を埋める。席の座標自体が全島に分散しているため、埋めていくと自然に座席がばらける。
+  // 席はランダムに割り当てる（開くたびに座席の並びが変わる）。
   // 席に入りきらない人は表示しない（人数だけ案内する）。
   function assignSeats(layout, list) {
     var seats = layout.desks.concat(layout.overflow);
+    for (var i = seats.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = seats[i]; seats[i] = seats[j]; seats[j] = t;
+    }
     var pos = {};
     hiddenCount = 0;
-    sortedForSeating(list).forEach(function (m, i) {
+    list.forEach(function (m, i) {
       if (seats[i]) pos[m.userId] = { x: seats[i][0], y: seats[i][1] };
       else hiddenCount++;
     });
@@ -666,12 +674,12 @@
     if (sn) sn.textContent = p < 25 ? 'キックオフ' : (p < 55 ? '設計・実装' : (p < 85 ? 'テスト・運用' : 'リリース準備'));
   }
 
-  // 同じ人が重ならないペアを最大4組選ぶ。歩く演出が映えるよう、まず「別のエリアにいる」相性の高いペアを優先し、
+  // 同じ人が重ならないペアを最大6組選ぶ。歩く演出が映えるよう、まず「別のエリアにいる」相性の高いペアを優先し、
   // 足りなければ同じエリアのペアで補う。盛り上がるよう、相性が低い順→最後に最高のペアの順で演出する。
   function pickWorkPairs() {
     var used = {}, picked = [];
     var seated = function (m) { return !officeMode || !!seatPos[m.userId]; };
-    var maxPairs = Math.min(4, Math.floor(members.length / 2));
+    var maxPairs = Math.min(6, Math.floor(members.length / 2));
     function pass(crossOnly) {
       for (var i = 0; i < analysis.pairs.length && picked.length < maxPairs; i++) {
         var p = analysis.pairs[i];
@@ -703,7 +711,7 @@
     d.style.left = (x - rr.left) + 'px';
     d.style.top = (y - rr.top) + 'px';
     room.appendChild(d);
-    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 2000);
+    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 3350);
   }
   function spark(rr, x, y, emoji) {
     var room = document.getElementById('room');
@@ -750,11 +758,31 @@
     var lines = dialog(pair);
     var up = ra.height / 2 + 6;
     var mid = { x: (targetA.x + targetB.x) / 2, y: (targetA.y + targetB.y) / 2 };
-    later(function () { bubble(rr, targetA.x, targetA.y - up, lines[0]); }, 1200);
-    later(function () { bubble(rr, targetB.x, targetB.y - up, lines[1]); }, 2000);
-    later(function () { spark(rr, mid.x, mid.y - up - 24, pair.score >= 80 ? '💞' : (pair.score >= 65 ? '✨' : '💡')); }, 2300);
-    later(function () { ea.style.transform = ''; eb.style.transform = ''; }, 3100);
-    later(function () { ea.classList.remove('walking'); eb.classList.remove('walking'); }, 4300);
+    later(function () { bubble(rr, targetA.x, targetA.y - up, lines[0]); }, 1000);
+    later(function () { bubble(rr, targetB.x, targetB.y - up, lines[1]); }, 1750);
+    later(function () { spark(rr, mid.x, mid.y - up - 24, pair.score >= 80 ? '💞' : (pair.score >= 65 ? '✨' : '💡')); }, 2050);
+    later(function () { ea.style.transform = ''; eb.style.transform = ''; }, 2750);
+    later(function () { ea.classList.remove('walking'); eb.classList.remove('walking'); }, 3750);
+  }
+
+  // 働いているメンバーへランダムに声かけ（応援の吹き出し）
+  var CHEER_LINES = ['あと少し、頑張ろう！', 'いい感じに進んでる！', 'おつかれさま！', 'ナイス集中力！', 'その調子、その調子！', '休憩も大事だよ'];
+  function cheer() {
+    if (phase !== 'running') return;
+    var room = document.getElementById('room');
+    if (!room) return;
+    var seated = members.filter(function (m) { return !officeMode || !!seatPos[m.userId]; });
+    if (!seated.length) return;
+    var m = seated[Math.floor(Math.random() * seated.length)];
+    var el = charEl(m.userId);
+    if (!el) return;
+    var pic = el.querySelector('.pic');
+    if (!pic) return;
+    var rr = room.getBoundingClientRect();
+    var rb = pic.getBoundingClientRect();
+    var cx = rb.left + rb.width / 2, cy = rb.top + rb.height / 2;
+    bubble(rr, cx, cy - rb.height / 2 - 6, CHEER_LINES[Math.floor(Math.random() * CHEER_LINES.length)]);
+    spark(rr, cx + rb.width / 2, cy - rb.height / 2 - 18, '🌟');
   }
 
   function startRun() {
@@ -783,8 +811,11 @@
     log('🚀 キックオフ！ みんなが席について仕事を始めました');
     if (!REDUCED) {
       pickWorkPairs().forEach(function (pair, k) {
-        later(function () { collaborate(pair, k); }, 2200 + k * 3000);
+        later(function () { collaborate(pair, k); }, 1600 + k * 1900);
       });
+      later(function () { cheer(); }, 4200);
+      later(function () { cheer(); }, 8200);
+      later(function () { cheer(); }, 12200);
       later(function () { log('🔍 レビューとテストの真っ最中…'); }, Math.round(duration * 0.64));
     }
     later(function () { log('✅ リリース完了！ お疲れさまでした'); }, duration - 800);
