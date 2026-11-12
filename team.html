@@ -127,7 +127,7 @@
 
   .bubble { position: absolute; z-index: 12; transform: translate(-50%, -100%); max-width: 190px; background: #fff; color: #1D2129;
     border: 2px solid var(--color-primary-500); border-radius: 14px; padding: 6px 10px; font-size: 13px; font-weight: 700; line-height: 1.35;
-    box-shadow: 0 3px 10px rgba(0,0,0,.2); pointer-events: none; animation: bubbleIn 1.9s ease both; }
+    box-shadow: 0 3px 10px rgba(0,0,0,.2); pointer-events: none; animation: bubbleIn 3.3s ease both; }
   .bubble::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 12px; background: #fff;
     border-right: 2px solid var(--color-primary-500); border-bottom: 2px solid var(--color-primary-500); transform: translateX(-50%) rotate(45deg); }
   @keyframes bubbleIn { 0% { opacity: 0; transform: translate(-50%, -80%) scale(.8); } 12%,80% { opacity: 1; transform: translate(-50%, -100%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -112%) scale(1); } }
@@ -166,7 +166,7 @@
   }
   .office .char.sel .pic { border-color: #E5484D; }
   .office .char.partner .pic { border-color: #1A9C6B; }
-  .office .bubble { max-width: 160px; font-size: 12px; }
+  .office .bubble { max-width: 215px; font-size: 14px; }
   .zlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: var(--fs-1); color: var(--color-neutral-700); }
   .zlegend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: middle; margin-right: 4px; }
   .team-main.office-mode { grid-template-columns: minmax(0, 1fr); }
@@ -404,7 +404,7 @@
         [85,39],[169,38],[256,38],[86,163],[168,163],[256,162],
         [362,241],[440,241],[513,240],[365,366],[439,366],[512,366]
       ],
-      // 席が足りない時の予備席（会議テーブル・丸テーブルの空き席、キッチン前などの立ち位置）
+      // 予備スポット（画像に椅子は描かれていない場所での立ち位置：丸テーブル周り・カウンター前など）
       overflow: [
         [84,454],[206,454],[328,454],[84,557],[206,558],[328,558],
         [963,93],[1083,93],[963,163],[1083,162],
@@ -481,13 +481,17 @@
     });
   }
 
-  // エリア順に席を埋める。席の座標自体が全島に分散しているため、埋めていくと自然に座席がばらける。
+  // 席はランダムに割り当てる（開くたびに座席の並びが変わる）。
   // 席に入りきらない人は表示しない（人数だけ案内する）。
   function assignSeats(layout, list) {
     var seats = layout.desks.concat(layout.overflow);
+    for (var i = seats.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = seats[i]; seats[i] = seats[j]; seats[j] = t;
+    }
     var pos = {};
     hiddenCount = 0;
-    sortedForSeating(list).forEach(function (m, i) {
+    list.forEach(function (m, i) {
       if (seats[i]) pos[m.userId] = { x: seats[i][0], y: seats[i][1] };
       else hiddenCount++;
     });
@@ -669,12 +673,12 @@
     if (sn) sn.textContent = p < 25 ? 'キックオフ' : (p < 55 ? '設計・実装' : (p < 85 ? 'テスト・運用' : 'リリース準備'));
   }
 
-  // 同じ人が重ならないペアを最大4組選ぶ。歩く演出が映えるよう、まず「別のエリアにいる」相性の高いペアを優先し、
+  // 同じ人が重ならないペアを最大6組選ぶ。歩く演出が映えるよう、まず「別のエリアにいる」相性の高いペアを優先し、
   // 足りなければ同じエリアのペアで補う。盛り上がるよう、相性が低い順→最後に最高のペアの順で演出する。
   function pickWorkPairs() {
     var used = {}, picked = [];
     var seated = function (m) { return !officeMode || !!seatPos[m.userId]; };
-    var maxPairs = Math.min(4, Math.floor(members.length / 2));
+    var maxPairs = Math.min(6, Math.floor(members.length / 2));
     function pass(crossOnly) {
       for (var i = 0; i < analysis.pairs.length && picked.length < maxPairs; i++) {
         var p = analysis.pairs[i];
@@ -706,7 +710,7 @@
     d.style.left = (x - rr.left) + 'px';
     d.style.top = (y - rr.top) + 'px';
     room.appendChild(d);
-    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 2000);
+    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 3350);
   }
   function spark(rr, x, y, emoji) {
     var room = document.getElementById('room');
@@ -753,11 +757,31 @@
     var lines = dialog(pair);
     var up = ra.height / 2 + 6;
     var mid = { x: (targetA.x + targetB.x) / 2, y: (targetA.y + targetB.y) / 2 };
-    later(function () { bubble(rr, targetA.x, targetA.y - up, lines[0]); }, 1200);
-    later(function () { bubble(rr, targetB.x, targetB.y - up, lines[1]); }, 2000);
-    later(function () { spark(rr, mid.x, mid.y - up - 24, pair.score >= 80 ? '💞' : (pair.score >= 65 ? '✨' : '💡')); }, 2300);
-    later(function () { ea.style.transform = ''; eb.style.transform = ''; }, 3100);
-    later(function () { ea.classList.remove('walking'); eb.classList.remove('walking'); }, 4300);
+    later(function () { bubble(rr, targetA.x, targetA.y - up, lines[0]); }, 1000);
+    later(function () { bubble(rr, targetB.x, targetB.y - up, lines[1]); }, 1750);
+    later(function () { spark(rr, mid.x, mid.y - up - 24, pair.score >= 80 ? '💞' : (pair.score >= 65 ? '✨' : '💡')); }, 2050);
+    later(function () { ea.style.transform = ''; eb.style.transform = ''; }, 2750);
+    later(function () { ea.classList.remove('walking'); eb.classList.remove('walking'); }, 3750);
+  }
+
+  // 働いているメンバーへランダムに声かけ（応援の吹き出し）
+  var CHEER_LINES = ['あと少し、頑張ろう！', 'いい感じに進んでる！', 'おつかれさま！', 'ナイス集中力！', 'その調子、その調子！', '休憩も大事だよ'];
+  function cheer() {
+    if (phase !== 'running') return;
+    var room = document.getElementById('room');
+    if (!room) return;
+    var seated = members.filter(function (m) { return !officeMode || !!seatPos[m.userId]; });
+    if (!seated.length) return;
+    var m = seated[Math.floor(Math.random() * seated.length)];
+    var el = charEl(m.userId);
+    if (!el) return;
+    var pic = el.querySelector('.pic');
+    if (!pic) return;
+    var rr = room.getBoundingClientRect();
+    var rb = pic.getBoundingClientRect();
+    var cx = rb.left + rb.width / 2, cy = rb.top + rb.height / 2;
+    bubble(rr, cx, cy - rb.height / 2 - 6, CHEER_LINES[Math.floor(Math.random() * CHEER_LINES.length)]);
+    spark(rr, cx + rb.width / 2, cy - rb.height / 2 - 18, '🌟');
   }
 
   function startRun() {
@@ -786,8 +810,11 @@
     log('🚀 キックオフ！ みんなが席について仕事を始めました');
     if (!REDUCED) {
       pickWorkPairs().forEach(function (pair, k) {
-        later(function () { collaborate(pair, k); }, 2200 + k * 3000);
+        later(function () { collaborate(pair, k); }, 1600 + k * 1900);
       });
+      later(function () { cheer(); }, 4200);
+      later(function () { cheer(); }, 8200);
+      later(function () { cheer(); }, 12200);
       later(function () { log('🔍 レビューとテストの真っ最中…'); }, Math.round(duration * 0.64));
     }
     later(function () { log('✅ リリース完了！ お疲れさまでした'); }, duration - 800);
