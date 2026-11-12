@@ -143,8 +143,10 @@
   @media (prefers-reduced-motion: reduce) { .char.working .pic, .char.working .doing, .room.running .zone, .startbtn { animation: none; } }
 
   /* ================= オフィス背景（Googleドライブ画像）の上にキャラを置く表示 ================= */
+  /* 参加者は最大10名想定。オフィスの表示サイズもそれに合わせて小さめにする（PC・モバイル共通の考え方） */
   .office-stage { width: 100%; margin: 0 auto; }
-  @media (min-width: 769px) { .office-stage { max-width: calc((100vh - 230px) * 1.7778); min-width: 640px; } }
+  @media (min-width: 769px) { .office-stage { max-width: min(880px, calc((100vh - 230px) * 1.7778)); min-width: min(640px, 100%); } }
+  @media (max-width: 768px) { .office-stage { width: 88%; } }
   .office { position: relative; width: 100%; background: #F5F1EA; border-radius: 16px; --u: 6px; }
   .office-bg { display: block; width: 100%; height: 100%; border-radius: 16px; user-select: none; -webkit-user-drag: none; }
   .office .char { position: absolute; width: calc(var(--u) * var(--tile));
@@ -258,10 +260,11 @@
   var SYNERGY = {};
   SYNERGY_LIST.forEach(function (x) { SYNERGY[[x[0], x[1]].sort().join('|')] = { score: x[2], note: x[3] }; });
 
-  // ---- 相性スコア（0〜100）----
+  // ---- 相性スコア（65〜100）----
   //  55% 職種の組み合わせ（協業のしやすさ）
   //  30% お互いの理解度（相手の職種を、自分がどれだけ「自分ごと」と感じる傾向にあるか。診断スコアの平均）
   //  15% 過ごし方の近さ（インドア/アウトドア傾向の近さ）
+  //  ※最終スコアは65を下限とする（誰との組み合わせでも「相性が悪い」印象にならないように）
   function synergyBase(ka, kb) {
     if (ka === kb) return { score: 62, note: '同じ職種どうし。話は早いけれど役割が被りやすいので、分担がカギ' };
     var hit = SYNERGY[[ka, kb].sort().join('|')];
@@ -303,7 +306,7 @@
     var mutual = (scoreFor(a, b.topJobKey) + scoreFor(b, a.topJobKey)) / 2;
     var io = 100 - Math.abs((Number(a.indoorPct) || 50) - (Number(b.indoorPct) || 50));
     var total = Math.round(0.55 * base.score + 0.30 * mutual + 0.15 * io);
-    return { score: Math.max(0, Math.min(100, total)), note: base.note };
+    return { score: Math.max(65, Math.min(100, total)), note: base.note };
   }
 
   // ---- チーム全体の集計 ----
@@ -393,14 +396,11 @@
   var LAYOUTS = {
     pc: {
       w: 1920, h: 1080,
-      // デスク席36（6席×6島）。島ごとに、上段3席→下段3席の順
+      // デスク席10（最大10名想定）。全6島に分散配置し、同じ島でも対角寄りの席を選んで、座席がばらけるようにする。
+      // 11名以降は overflow（会議テーブル等の予備席）を使い、それも埋まれば表示しない（人数だけ案内する）。
       desks: [
-        [171,87],[309,87],[449,87],[168,280],[303,280],[448,280],
-        [617,87],[753,87],[889,87],[618,280],[761,280],[893,280],
-        [1073,87],[1211,87],[1336,87],[1071,280],[1215,280],[1335,280],
-        [173,427],[304,427],[449,427],[175,619],[312,619],[438,619],
-        [624,427],[766,427],[898,427],[628,619],[750,619],[892,619],
-        [1068,427],[1209,427],[1335,427],[1081,619],[1201,619],[1338,619]
+        [171,87],[448,280],[753,87],[618,280],[1336,87],[1071,280],
+        [304,427],[175,619],[766,427],[1335,427]
       ],
       // 席が足りない時の予備席（会議テーブル・丸テーブルの空き席、キッチン前などの立ち位置）
       overflow: [
@@ -419,13 +419,10 @@
     },
     mobile: {
       w: 1080, h: 1920,
+      // デスク席10（最大10名想定）。PC版と同じく、全6島に分散配置して座席がばらけるようにする。
       desks: [
-        [130,107],[268,107],[409,107],[127,299],[263,299],[408,299],
-        [647,107],[783,107],[919,107],[648,299],[791,299],[923,299],
-        [133,448],[271,448],[396,448],[131,640],[275,640],[394,640],
-        [653,447],[783,447],[929,447],[655,640],[792,640],[918,640],
-        [135,787],[276,787],[408,787],[137,979],[261,979],[401,979],
-        [648,787],[789,787],[915,787],[661,979],[781,979],[918,979]
+        [130,107],[408,299],[783,107],[648,299],[396,448],[131,640],
+        [929,447],[655,640],[276,787],[915,787]
       ],
       overflow: [
         [130,1689],[185,1239],[394,1239],[394,1360],[189,1366],
@@ -481,7 +478,8 @@
     });
   }
 
-  // 同じエリアの人がなるべく近い島に座るよう、エリア順に席を埋める。席に入りきらない人は表示しない（人数だけ案内する）。
+  // エリア順に席を埋める。席の座標自体が全島に分散しているため、埋めていくと自然に座席がばらける。
+  // 席に入りきらない人は表示しない（人数だけ案内する）。
   function assignSeats(layout, list) {
     var seats = layout.desks.concat(layout.overflow);
     var pos = {};
@@ -620,7 +618,7 @@
       top = (members.length >= 2 ? '<div class="startbar small"><button type="button" class="startbtn ghost" id="startBtn">↻ もう一度働かせる</button></div>' : '') +
         bannerHtml(h, reveal) + statsHtml(reveal);
       main = '<div class="team-main' + (officeMode ? ' office-mode' : '') + (reveal ? ' reveal d3' : '') + '"><div>' + room(true) +
-        '<div class="legend"><span><i style="background:#1A9C6B"></i>相性 80以上</span><span><i style="background:#0969DA"></i>65〜79</span><span><i style="background:#E08A00"></i>64以下</span>' +
+        '<div class="legend"><span><i style="background:#1A9C6B"></i>相性 80以上</span><span><i style="background:#0969DA"></i>65〜79</span>' +
         '<span>※キャラをクリックすると、その人との相性が線で表示されます</span></div></div><div class="side" id="side"></div></div>';
       after = adviceHtml(reveal);
     }
